@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import jwt from "jsonwebtoken";
 
 import { server } from "../../../src/server";
+import { User } from "@prisma/client";
 import { desconectarBancoDeDados, prisma } from "../../../src/config/db";
 
 describe("Teste de integração: /api/auth/login", () => {
@@ -83,7 +84,7 @@ describe("Teste de integração: /api/auth/login", () => {
 
 describe("Teste de integração: /api/auth/updatePassword", () => {
 
-    let adminOriginal: string;
+    let adminOriginal: User | null;
 
     beforeAll(async () => {
         execSync("npx tsx prisma/seed.ts");
