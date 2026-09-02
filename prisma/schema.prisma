@@ -37,3 +37,15 @@ model Role {
   name  String
   users User[]
 }
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   
+  status      String   
+  targetEmail String?  
+  userId      String?  
+  ipAddress   String?  
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
