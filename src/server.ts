@@ -8,6 +8,8 @@ import { routes } from "./config/routes";
 
 const server = express();
 
+server.disable("x-powered-by");
+
 server.use(express.json());
 server.use(cookieParser());
 

@@ -59,11 +59,15 @@ jobs:
         run: npm run build
 
       - name: Check de Testes
-        run: npm run test -- --runInBand
+        run: npm run test:coverage
+
+      - name: Verificar relatório de cobertura
+        run: |
+          ls -lah coverage
+          test -f coverage/lcov.info
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
-        if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
