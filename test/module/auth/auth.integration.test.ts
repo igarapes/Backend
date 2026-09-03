@@ -3,7 +3,8 @@ import { execSync } from "child_process";
 import jwt from "jsonwebtoken";
 
 import { server } from "../../../src/server";
-import { User } from "@prisma/client";
+import { AuthService } from "../../../src/modules/auth/auth.service";
+import { AuditService } from "../../../src/shared/audit";
 import { desconectarBancoDeDados, prisma } from "../../../src/config/db";
 
 describe("Teste de integração: /api/auth/login", () => {
@@ -85,6 +86,73 @@ describe("Teste de integração: /api/auth/login", () => {
     });
 
 
+    it("Deve retornar 400 se ocorrer um erro instanciado (Error) genérico no login", async () => {
+        const spy = jest.spyOn(AuthService.prototype, 'makeLogin').mockRejectedValueOnce(new Error("Erro simulado no banco"));
+        
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({
+                identifier: "admin@igarape.com.br",
+                password: "Admin123!"
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Erro simulado no banco");
+        
+        spy.mockRestore(); 
+    });
+
+    it("Deve retornar 500 se ocorrer um erro não instanciado no login", async () => {
+        const spy = jest.spyOn(AuthService.prototype, 'makeLogin').mockRejectedValueOnce("Um erro em formato de string");
+        
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({
+                identifier: "admin@igarape.com.br",
+                password: "Admin123!"
+            });
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe("Ocorreu um erro interno inesperado.");
+        
+        spy.mockRestore();
+    });
+
+    it("Deve concluir o login com sucesso mesmo se o AuditService lançar um erro", async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const auditSpy = jest.spyOn(AuditService.prototype, 'register').mockRejectedValueOnce(new Error("Erro de auditoria simulado"));
+        
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({
+                identifier: "admin@igarape.com.br",
+                password: "Admin123!"
+            });
+        
+        expect(response.status).toBe(200);
+        expect(consoleSpy).toHaveBeenCalled();
+        
+        consoleSpy.mockRestore();
+        auditSpy.mockRestore();
+    });
+
+    it("Deve retornar 401 e logar erro se a auditoria falhar ao registrar credenciais inválidas", async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const auditSpy = jest.spyOn(AuditService.prototype, 'register').mockRejectedValueOnce(new Error("Erro de auditoria simulado"));
+        
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({
+                identifier: "teste@teste.com.br",
+                password: "SenhaErrada123!"
+            });
+
+        expect(response.status).toBe(401);
+        expect(consoleSpy).toHaveBeenCalled();
+        
+        consoleSpy.mockRestore();
+        auditSpy.mockRestore();
+    });
 });
 
 describe("Teste de integração: /api/auth/updatePassword", () => {
@@ -251,5 +319,135 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
             });
         
         expect(response.status).toBe(401);
+    });
+
+    it("Deve retornar 401 quando o token for inválido", async () => {
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", "token=token-invalido")
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "NovaSenhaSegura@2!",
+            });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Acesso negado: Token inválido ou expirado.");
+    });
+
+    it("Deve retornar 401 quando o token estiver expirado", async () => {
+        const secret = process.env.AUTH_TOKEN;
+
+        expect(secret).toBeDefined();
+
+        const expiredToken = jwt.sign(
+            {
+                id: "usuario-id",
+                role: "admin",
+            },
+            secret!,
+            {
+                expiresIn: -1,
+            }
+        );
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", `token=${expiredToken}`)
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "NovaSenhaSegura@2!",
+            });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Acesso negado: Token inválido ou expirado.");
+    });
+
+    it("Deve retornar 400 quando as senhas não coincidirem", async () => {
+        const cookies = await realizarLogin();
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "OutraSenhaSegura@3!",
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Erro de validação nos dados enviados");
+        expect(response.body.details.confirmPassword._errors).toContain("As senhas não coincidem");
+    });
+
+    it("Deve retornar 401 quando o token é válido, mas não contém um ID", async () => {
+        const secret = process.env.AUTH_TOKEN;
+        
+        const tokenSemId = jwt.sign({ role: "admin" }, secret!);
+        
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", `token=${tokenSemId}`)
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "NovaSenhaSegura@2!",
+            });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Acesso negado: ID não encontrado no token");
+    });
+
+    it("Deve retornar 400 se o AuthService.updatePassword lançar um erro comum", async () => {
+        const cookies = await realizarLogin();
+        const spy = jest.spyOn(AuthService.prototype, 'updatePassword').mockRejectedValueOnce(new Error("Erro simulado ao atualizar"));
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "NovaSenhaSegura@2!",
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Erro simulado ao atualizar");
+        
+        spy.mockRestore();
+    });
+
+    it("Deve retornar 500 se o AuthService.updatePassword lançar um erro inesperado", async () => {
+        const cookies = await realizarLogin();
+        const spy = jest.spyOn(AuthService.prototype, 'updatePassword').mockRejectedValueOnce({ falha: "desconhecida" });
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "NovaSenhaSegura@2!",
+            });
+
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe("Ocorreu um erro interno inesperado.");
+        
+        spy.mockRestore();
+    });
+
+    it("Deve concluir a atualização mesmo se a auditoria falhar (cobertura do catch)", async () => {
+        const cookies = await realizarLogin();
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const auditSpy = jest.spyOn(AuditService.prototype, 'register').mockRejectedValueOnce(new Error("Auditoria offline"));
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({
+                newPassword: "NovaSenhaSegura@2!",
+                confirmPassword: "NovaSenhaSegura@2!",
+            });
+
+        expect(response.status).toBe(200);
+        expect(consoleSpy).toHaveBeenCalled();
+        
+        consoleSpy.mockRestore();
+        auditSpy.mockRestore();
     });
 });

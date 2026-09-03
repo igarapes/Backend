@@ -21,7 +21,7 @@ export class AuthController{
             res.status(200).json({message: "Login realizado com sucesso"})
         } catch (error: unknown) {
             if(error instanceof Error){
-                if ( error instanceof Error && error.message === "Credenciais inválidas" ) {
+                if (error.message === "Credenciais inválidas" ) {
                     try {
                         await auditService.register( "LOGIN_ATTEMPT", "FAILED", identifier, undefined, req.ip );
                     } catch (auditError) {
