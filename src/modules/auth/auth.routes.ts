@@ -37,7 +37,7 @@ const authController = new AuthController();
 authRoutes.post(
     "/login",
     validateData(schemaLogin, "body"),
-    authController.login
+    authController.login.bind(authController)
 );
 
 /**
@@ -67,8 +67,8 @@ authRoutes.post(
 authRoutes.patch(
     "/updatePassword",
     authenticated,
-    validateData(schemaChangePassword),
-    authController.updatePassword
+    validateData(schemaChangePassword, "body"),
+    authController.updatePassword.bind(authController)
 );
 
 export { authRoutes }

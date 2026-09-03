@@ -7,6 +7,7 @@ import { swaggerSpec } from "./config/swagger";
 import { routes } from "./config/routes";
 
 const server = express();
+
 server.use(express.json());
 server.use(cookieParser());
 

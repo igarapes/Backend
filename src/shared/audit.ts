@@ -12,9 +12,9 @@ export class AuditService {
             data: {
                 action,
                 status,
-                targetEmail: targetEmail || null,
-                userId: userId || null,
-                ipAddress: ipAddress || "IP desconhecido"
+                targetEmail: targetEmail ?? null,
+                userId: userId ?? null,
+                ipAddress: ipAddress ?? "IP desconhecido"
             }
         });
     }

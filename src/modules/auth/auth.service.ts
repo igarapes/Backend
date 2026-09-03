@@ -1,10 +1,11 @@
-import { AuthRepository } from "./auth.repository";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
+import { AuthRepository } from "./auth.repository";
+
 const authRepository = new AuthRepository();
 export class AuthService{
-    async madeLogin(identifier: string, password: string){
+    async makeLogin(identifier: string, password: string){
         const user = await authRepository.findUserByIdentifier(identifier);
         if(!user){
             throw new Error("Credenciais inválidas")
@@ -15,8 +16,16 @@ export class AuthService{
         if(!comparePassword){
             throw new Error("Credenciais inválidas")
         }
+        const secret = process.env.AUTH_TOKEN;
 
-        return jwt.sign({ id: user.id, role: user.role.name }, process.env.AUTH_TOKEN as string, { expiresIn: "1d" })
+        if (!secret) {
+            throw new Error(
+                "AUTH_TOKEN não configurado"
+            );
+        }
+
+
+        return jwt.sign({ id: user.id, role: user.role.name }, secret, { expiresIn: "1d" })
     }
 
     async updatePassword(id: string, newPassword:string){

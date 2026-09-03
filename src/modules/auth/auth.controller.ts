@@ -2,34 +2,38 @@ import type { Request, Response } from "express";
 
 import { AuthService } from "./auth.service";
 import { AuditService } from "../../shared/audit";
+import type { AuthRequest } from "../../shared/middleware/authenticated";
 
 const auditService = new AuditService();
-
-export interface AuthRequest extends Request {
-    userId?: string;
-}
-
 const authService = new AuthService();
+
 export class AuthController{
     async login(req:Request, res:Response){
+        const {identifier, password} = req.body;
         try {
-            const {identifier, password} = req.body;
-            const tokenValue = await authService.madeLogin(identifier, password);
-            await auditService.register("LOGIN_ATTEMPT", "SUCCESS", identifier, undefined, req.ip);
-            res.cookie("token", tokenValue, {httpOnly: true, secure: true});
+            const tokenValue = await authService.makeLogin(identifier, password);
+            try {
+                await auditService.register( "LOGIN_ATTEMPT", "SUCCESS", identifier, undefined, req.ip);
+            } catch (auditError) {
+                console.error("Error ao regostrar auditoria de login:", auditError);
+            }
+            res.cookie("token", tokenValue, {httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge:24 *60 *60 *1000,});
             res.status(200).json({message: "Login realizado com sucesso"})
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                if (error.message === "Credenciais inválidas") {
-                    await auditService.register("LOGIN_ATTEMPT", "FAILED", req.body.identifier, undefined, req.ip);
-                    res.status(401).json({ message: error.message });
-                    return; 
+            if(error instanceof Error){
+                if ( error instanceof Error && error.message === "Credenciais inválidas" ) {
+                    try {
+                        await auditService.register( "LOGIN_ATTEMPT", "FAILED", identifier, undefined, req.ip );
+                    } catch (auditError) {
+                        console.error("Erro ao registrar auditoria de login:",auditError);
+                    }
+
+                    return res.status(401).json({ message: "Credenciais inválidas", });
                 }
-                
                 res.status(400).json({ message: error.message });
-            } else {
-                res.status(500).json({ message: "Ocorreu um erro interno inesperado." });
-            }
+            }else{
+                return res.status(500).json({ message: "Ocorreu um erro interno inesperado.", });
+            } 
         }
     }
 
@@ -43,7 +47,12 @@ export class AuthController{
                 return;
             }
             await authService.updatePassword(id, newPassword);
-            await auditService.register("PASSWORD_UPDATE", "SUCCESS", undefined, id, req.ip);
+        
+            try {
+                await auditService.register("PASSWORD_UPDATE", "SUCCESS", undefined, id, req.ip);
+            } catch (auditError) {
+                console.error("Error ao regostrar auditoria de login:", auditError);
+            }
             res.status(200).json({ message: "Senha atualizada com sucesso" });
         } catch (error: unknown) {
             if (error instanceof Error) {

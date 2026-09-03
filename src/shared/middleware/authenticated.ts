@@ -12,8 +12,15 @@ export function authenticated(req: AuthRequest, res: Response, next: NextFunctio
         return res.status(401).json({message: "Acesso negado: Token não fornecido."});
     }
 
+    const secret = process.env.AUTH_TOKEN;
+
+    if (!secret) {
+        console.error("AUTH_TOKEN não configurado.");
+
+        return res.status(500).json({ message: "Ocorreu um erro interno inesperado." });
+    }
+
     try {
-        const secret = process.env.AUTH_TOKEN as string;
         const payload = jwt.verify(token, secret) as {id: string, role: string};
         req.userId = payload.id;
         req.roleId = payload.role;

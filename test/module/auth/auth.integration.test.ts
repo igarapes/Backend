@@ -73,10 +73,15 @@ describe("Teste de integração: /api/auth/login", () => {
         
         const cookie = response.headers["set-cookie"][0];
         const tokenValue = cookie.split(";")[0].replace("token=", "");
-        const decoded = jwt.decode(tokenValue) as jwt.JwtPayload;
+        const secret = process.env.AUTH_TOKEN;
+
+        expect(secret).toBeDefined();
+
+        const decoded = jwt.verify(tokenValue,secret!) as jwt.JwtPayload;
 
         expect(decoded).toHaveProperty("id");
         expect(decoded).toHaveProperty("role");
+        expect(decoded.role).toBe("admin");
     });
 
 
@@ -84,42 +89,52 @@ describe("Teste de integração: /api/auth/login", () => {
 
 describe("Teste de integração: /api/auth/updatePassword", () => {
 
-    let adminOriginal: User | null;
+    let adminOriginalPassword: string;
+    let adminOriginalFirstAccess: boolean;
 
     beforeAll(async () => {
-        execSync("npx tsx prisma/seed.ts");
-        
-        adminOriginal = await prisma.user.findUnique({
-            where: { email: "admin@igarape.com.br" }
+        const admin = await prisma.user.findUnique({
+            where: {
+                email:"admin@igarape.com.br",
+            },
         });
+
+        if (!admin) {
+            throw new Error("Usuário admin não encontrado.");
+        }
+
+        adminOriginalPassword = admin.password;
+        adminOriginalFirstAccess = admin.firstAccess;
     });
 
     afterEach(async () => {
-        if (adminOriginal) {
-            await prisma.user.update({
-                where: { email: "admin@igarape.com.br" },
-                data: {
-                    password: adminOriginal.password,
-                    firstAccess: adminOriginal.firstAccess
-                }
-            });
-        }
+        await prisma.user.update({
+            where: {
+                email:"admin@igarape.com.br",
+            },
+            data: {
+                password: adminOriginalPassword,
+                firstAccess: adminOriginalFirstAccess,
+            },
+        });
     });
 
-    afterAll(async () => {
-        await desconectarBancoDeDados();
-    });
-
-    it("Deve realizar atualização de senha com sucesso", async () => {
+    async function realizarLogin() {
         const loginResponse = await request(server)
             .post("/api/auth/login")
             .send({
                 identifier: "admin@igarape.com.br",
-                password: "Admin123!"
+                password: "Admin123!",
             });
 
-        const cookies = loginResponse.headers["set-cookie"];
-        
+        expect(loginResponse.status).toBe(200);
+        expect(loginResponse.headers["set-cookie"]).toBeDefined();
+
+        return loginResponse.headers["set-cookie"];
+    }
+
+    it("Deve realizar atualização de senha com sucesso", async () => {
+        const cookies = await realizarLogin();
         const response = await request(server)
             .patch("/api/auth/updatePassword")
             .set("Cookie", cookies)
@@ -139,15 +154,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     });
         
     it("Deve returnar erro 400, quando a senha não tem o tamanho ideal", async () => {
-        const loginResponse = await request(server)
-            .post("/api/auth/login")
-            .send({
-                identifier: "admin@igarape.com.br",
-                password: "Admin123!"
-            });
-
-        const cookies = loginResponse.headers["set-cookie"];
-        
+        const cookies = await realizarLogin()
         const response = await request(server)
             .patch("/api/auth/updatePassword")
             .set("Cookie", cookies)
@@ -164,15 +171,8 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     });
 
     it("Deve returnar erro 400, quando a senha não tem caracter especial", async () => {
-        const loginResponse = await request(server)
-            .post("/api/auth/login")
-            .send({
-                identifier: "admin@igarape.com.br",
-                password: "Admin123!"
-            });
+        const cookies = await realizarLogin();
 
-        const cookies = loginResponse.headers["set-cookie"];
-        
         const response = await request(server)
             .patch("/api/auth/updatePassword")
             .set("Cookie", cookies)
@@ -189,15 +189,8 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     });
 
     it("Deve returnar erro 400, quando a senha não tem numeros", async () => {
-        const loginResponse = await request(server)
-            .post("/api/auth/login")
-            .send({
-                identifier: "admin@igarape.com.br",
-                password: "Admin123!"
-            });
+        const cookies = await realizarLogin();
 
-        const cookies = loginResponse.headers["set-cookie"];
-        
         const response = await request(server)
             .patch("/api/auth/updatePassword")
             .set("Cookie", cookies)
@@ -214,15 +207,8 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     });
 
     it("Deve returnar erro 400, quando a senha não tem letras minúsculas", async () => {
-        const loginResponse = await request(server)
-            .post("/api/auth/login")
-            .send({
-                identifier: "admin@igarape.com.br",
-                password: "Admin123!"
-            });
+        const cookies = await realizarLogin();
 
-        const cookies = loginResponse.headers["set-cookie"];
-        
         const response = await request(server)
             .patch("/api/auth/updatePassword")
             .set("Cookie", cookies)
@@ -239,15 +225,8 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     });
 
     it("Deve returnar erro 400, quando a senha não tem letras maiúsculas", async () => {
-        const loginResponse = await request(server)
-            .post("/api/auth/login")
-            .send({
-                identifier: "admin@igarape.com.br",
-                password: "Admin123!"
-            });
+        const cookies = await realizarLogin();
 
-        const cookies = loginResponse.headers["set-cookie"];
-        
         const response = await request(server)
             .patch("/api/auth/updatePassword")
             .set("Cookie", cookies)

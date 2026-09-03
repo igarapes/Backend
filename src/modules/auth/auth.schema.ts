@@ -1,8 +1,16 @@
 import { z } from "zod";
 
 export const schemaLogin = z.object({
-    identifier: z.string().trim().max(255).min(11),
-    password: z.string().trim().max(255).min(8),
+    identifier: z
+      .string()
+      .trim()
+      .max(255, "Oidentificador deve ter no máximo 255 caracteres")
+      .min(11, "O identificador deve ter no mínimo 11 caracteres"),
+    password: z.
+      string()
+      .trim()
+      .max(255, "A senha deve ter no máximo 255 caracteres")
+      .min(8, "A senha deve ter no mínimo 8 caracteres"),
 })
 
 const passwordValidation = z
@@ -15,7 +23,7 @@ const passwordValidation = z
 
 export const schemaChangePassword = z.object({
   newPassword: passwordValidation,
-  confirmPassword: z.string(),
+  confirmPassword: z.string().min(1, "A confirmação de senha é obrigatória"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],

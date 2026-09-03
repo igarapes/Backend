@@ -16,9 +16,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: testdb
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -26,10 +26,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://admin:password@localhost:5432/testdb?schema=public
-      JWT_SECRET: ${{ secrets.AUTH_TOKEN }} 
+      DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
+      AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+      NODE_ENV: test
 
     steps:
       - name: Checkout do código
@@ -59,7 +59,7 @@ jobs:
         run: npm run build
 
       - name: Check de Testes
-        run: npm run test
+        run: npm run test -- --runInBand
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
