@@ -18,7 +18,7 @@ export class AuthController{
                 console.error("Error ao regostrar auditoria de login:", auditError);
             }
             res.cookie("token", tokenValue, {httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge:24 *60 *60 *1000,});
-            res.status(200).json({message: "Login realizado com sucesso"})
+            res.status(200).json({message: "Login realizado com sucesso", token: tokenValue})
         } catch (error: unknown) {
             if(error instanceof Error){
                 if (error.message === "Credenciais inválidas" ) {
