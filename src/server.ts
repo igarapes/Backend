@@ -1,4 +1,5 @@
 import express from "express";
+import cors from 'cors';
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
@@ -10,6 +11,21 @@ const server = express();
 
 server.disable("x-powered-by");
 
+server.set('trust proxy', 1);
+
+server.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+      callback(null, true);
+    } else if (process.env.URL_FRONT && origin === process.env.URL_FRONT) {
+      callback(null, true);
+    } else {
+      callback(new Error("Bloqueado pela política de CORS"));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200, 
+}));
 server.use(express.json());
 server.use(cookieParser());
 

@@ -11,6 +11,7 @@ async function main() {
   
   await prisma.user.deleteMany();
   await prisma.role.deleteMany();
+  await prisma.auditLog.deleteMany()
 
   console.log("Plantando novos dados iniciais...");
 
