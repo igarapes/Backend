@@ -16,15 +16,15 @@ async function main() {
   console.log("Plantando novos dados iniciais...");
 
   const adminRole = await prisma.role.create({
-    data: { name: "admin" },
+    data: { name: "ADMIN" },
   });
   
   const tecnicoRole = await prisma.role.create({
-    data: { name: "tecnico" },
+    data: { name: "TECNICO" },
   });
   
   const usuarioRole = await prisma.role.create({
-    data: { name: "usuario" },
+    data: { name: "USUARIO" },
   });
 
   const hashPassword = await bcrypt.hash("Admin123!", 10);

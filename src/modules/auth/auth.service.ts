@@ -25,8 +25,6 @@ export class AuthService {
             throw new Error("AUTH_TOKEN não configurado");
         }
 
-        console.log(user.firstAccess)
-
         return jwt.sign(
             { 
                 id: user.id, 
