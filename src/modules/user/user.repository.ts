@@ -83,18 +83,40 @@ export class UserRepository {
         return users;
     }
 
-    async updateUser(id: string, userObj: UpdateUserDTO, updateById: string){
-        const updateUser = await prisma.user.update({
-            where: { id: id },
-            data:{
-                ...(userObj.name && { name: userObj.name }),
-                ...(userObj.phone && { phone: userObj.phone }),
-                ...(userObj.email && { email: userObj.email }),
-                ...(userObj.password && { password: userObj.password }),
-                createdById: updateById,
-            }
+    async getUserById(id: string){
+        const user = await prisma.user.findUnique({
+            where:{id}, 
+            include:{role:true}
         });
+        return user;
+    }
 
-        return updateUser;
+    async updateUser(id: string, userObj: UpdateUserDTO, updateById: string){
+    
+        try {
+            const updateUser = await prisma.user.update({
+            where: { id: id },
+                data:{
+                    ...(userObj.name && { name: userObj.name }),
+                    ...(userObj.phone && { phone: userObj.phone }),
+                    ...(userObj.email && { email: userObj.email }),
+                    ...(userObj.password && { password: userObj.password }),
+                    updatedById: updateById,
+                }
+            });
+
+            return {
+                ...updateUser,
+                cpf: "***.***.***-**" 
+            };
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                if (error.code === 'P2002') {
+                    throw new Error("Os dados informados (E-mail ou CPF) já estão em uso.", {cause: error});
+                }
+            }
+            throw error; 
+        }
+
     }
 }

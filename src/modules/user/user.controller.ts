@@ -1,4 +1,5 @@
 import type { Response } from "express";
+
 import { UserService } from "./user.service";
 import type { AuthRequest } from "../../shared/middleware/authenticated";
 
@@ -16,6 +17,27 @@ export class UserController {
             return res.status(201).json(response);
         } catch (error) {
             if (error instanceof Error) {
+                return res.status(400).json({ message: error.message });
+            }
+            return res.status(500).json({ message: "Ocorreu um erro interno inesperado." });
+        }
+    }
+
+    async updateUser(req: AuthRequest, res: Response){
+        const idTarget = req.params.id as string;
+        const userData = req.body; 
+        const UpdaterId = req.userId as string; 
+        const UpdaterRole = req.roleId as string; 
+        const ip = req.ip as string;
+
+        try {
+            const response = await userService.updateUser(idTarget, userData, UpdaterId, UpdaterRole, ip);
+            return res.status(200).json(response);
+        } catch (error) {
+            if (error instanceof Error) {
+                if (error.message.includes("Acesso negado")) {
+                    return res.status(403).json({ message: error.message });
+                }
                 return res.status(400).json({ message: error.message });
             }
             return res.status(500).json({ message: "Ocorreu um erro interno inesperado." });

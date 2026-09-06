@@ -44,9 +44,13 @@ const passwordValidation = z
 
 
 export const schemaUpdate = schemaCreate
-    .omit({ cpf: true, role: true }) 
+    .omit({ cpf: true}) 
     .extend({ password: passwordValidation }) 
     .partial(); 
 
 
 export type UpdateUserDTO = z.infer<typeof schemaUpdate>;
+
+export const schemaIdParam = z.object({
+  id: z.string().uuid({ message: "O ID fornecido não é um formato de UUID válido." })
+});

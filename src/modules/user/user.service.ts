@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { UserRepository } from "./user.repository";
 import { sendTemporaryPasswordEmail } from "../../shared/email";
 import { AuditService } from "../../shared/audit";
-import type { CreateUserDTO } from "./user.schema";
+import type { CreateUserDTO, UpdateUserDTO } from "./user.schema";
 
 const userRepository = new UserRepository();
 const auditService = new AuditService();
@@ -54,5 +54,47 @@ export class UserService {
         }
 
         return createdUser;
+    }
+
+    async updateUser(idTarget: string, userObj: UpdateUserDTO, idUpdater: string, updaterRole: string, ip: string){
+        const targetUser = await userRepository.getUserById(idTarget);
+        if(!targetUser){
+            throw new Error("Usuário não envontrado");
+        }
+        
+        if(updaterRole === "USUARIO" && idUpdater !== targetUser.id){
+            throw new Error("Acesso negado: Usuários não podem atualizar outros perfis.");
+        }
+
+        if(updaterRole === "TECNICO"){
+            const targetRole = targetUser.role.name;
+            if (idUpdater !== idTarget && (targetRole === "ADMIN" || targetRole === "TECNICO")) {
+                throw new Error("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
+            }
+
+            if (userObj.role === "ADMIN") {
+                throw new Error("Acesso negado: Apenas administradores podem conceder o perfil de ADMIN.");
+            }
+        }
+
+        if(userObj.password){
+            userObj.password = await bcrypt.hash(userObj.password, 10);
+        }
+
+        let updateUser
+        try {
+            updateUser = await userRepository.updateUser(idTarget, userObj, idUpdater);
+            await auditService.register("USER_UPDATE", "SUCCESS", userObj.email, idUpdater, ip);
+            return updateUser;
+        } catch (error: unknown) {
+            await auditService.register("USER_UPDATE", "FAILED_DB_CONSTRAINT", userObj.email, idUpdater, ip);
+            
+            if (error instanceof Error) {
+                throw new Error(error.message, { cause: error }); 
+            }
+            
+            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
+        }
+
     }
 }
