@@ -3,7 +3,7 @@ import { Router } from "express";
 import { UserController } from "./user.controller";
 import { validateData } from "../../shared/middleware/validadeData";
 import { authenticated } from "../../shared/middleware/authenticated";
-import { checkRole } from "../../shared/middleware/checkRole"; // Ajuste o caminho conforme seu projeto
+import { checkRole } from "../../shared/middleware/checkRole";
 import { schemaCreate, schemaIdParam, schemaUpdate } from "./user.schema";
 
 const userRoutes = Router();
@@ -118,6 +118,73 @@ userRoutes.put(
     validateData(schemaIdParam, "params"),         
     validateData(schemaUpdate, "body"),            
     userController.updateUser.bind(userController) 
+);
+
+/**
+ * @swagger
+ * /user/{id}/inactivate:
+ *   patch:
+ *     summary: Inativa um usuário do sistema (Soft Delete)
+ *     description: Rota estritamente administrativa. Altera o status do usuário para inativo, bloqueando acessos futuros sem apagar o histórico de auditoria. Técnicos só podem inativar Usuários comuns. Administradores podem inativar Técnicos e Usuários.
+ *     tags: [Usuários]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID (UUID) do usuário alvo que será inativado
+ *     responses:
+ *       200:
+ *         description: Usuário inativado com sucesso.
+ *       400:
+ *         description: Erro de validação no formato do UUID enviado.
+ *       401:
+ *         description: Acesso negado. Token de autenticação ausente ou inválido.
+ *       403:
+ *         description: Acesso negado. Possíveis motivos - Violação de hierarquia (Técnico inativando Admin) ou tentativa de autossabotagem (inativar a própria conta).
+ *       404:
+ *         description: Usuário alvo não encontrado no banco de dados.
+ */
+userRoutes.patch( 
+    "/:id/inactivate", 
+    authenticated,
+    checkRole(["ADMIN", "TECNICO"]), 
+    validateData(schemaIdParam, "params"),
+    userController.inactivateUser.bind(userController)
+);
+
+/**
+ * @swagger
+ * /user/{id}:
+ *   delete:
+ *     summary: Exclui (anonimiza) a conta do próprio usuário
+ *     description: Rota para que o usuário exerça seu direito de exclusão (LGPD). Os dados pessoais são anonimizados para preservar a integridade do banco de dados e os logs de auditoria. Apenas o dono da conta pode excluí-la. Administradores não podem excluir suas próprias contas.
+ *     tags: [Usuários]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID (UUID) da conta a ser excluída
+ *     responses:
+ *       200:
+ *         description: Conta excluída (anonimizada) com sucesso.
+ *       400:
+ *         description: Erro de validação ou usuário não encontrado.
+ *       401:
+ *         description: Acesso negado. Token ausente ou inválido.
+ *       403:
+ *         description: Acesso negado. Tentativa de excluir conta de terceiros ou tentativa do Admin de se autoexcluir.
+ */
+userRoutes.delete(
+    "/:id",
+    authenticated,
+    validateData(schemaIdParam, "params"),
+    userController.anonymizeUser.bind(userController)
 );
 
 export { userRoutes };

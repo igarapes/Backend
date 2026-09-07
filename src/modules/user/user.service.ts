@@ -59,7 +59,7 @@ export class UserService {
     async updateUser(idTarget: string, userObj: UpdateUserDTO, idUpdater: string, updaterRole: string, ip: string){
         const targetUser = await userRepository.getUserById(idTarget);
         if(!targetUser){
-            throw new Error("Usuário não envontrado");
+            throw new Error("Usuário não encontrado");
         }
         
         if(updaterRole === "USUARIO" && idUpdater !== targetUser.id){
@@ -96,5 +96,66 @@ export class UserService {
             throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
         }
 
+    }
+
+    async inactivateUser(idTarget: string, idUpdater: string, roleUpdater:string, ip: string){
+        const targetUser = await userRepository.getUserById(idTarget);
+        if(!targetUser){
+            throw new Error("Usuário não encontrado");
+        }
+
+        if(roleUpdater === "USUARIO"){
+            throw new Error("Acesso negado: Usuários não podem inativar perfis.");
+        }
+
+        if(idTarget === idUpdater){
+            throw new Error("Acesso negado: Não pode inativar o próprio perfil.");
+        }
+
+        if(roleUpdater === "TECNICO" && (targetUser.role.name === "ADMIN" || targetUser.role.name === "TECNICO")){
+            throw new Error("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
+        }
+
+        try {
+            const inactivateUser = await userRepository.inactivateUser(idTarget, idUpdater);
+            await auditService.register("USER_INACTIVATE", "SUCCESS", targetUser.email, idUpdater, ip);
+            return inactivateUser;
+        } catch (error) {
+            await auditService.register("USER_INACTIVATE", "FAILED_DB_CONSTRAINT", idTarget, idUpdater, ip);
+            
+            if (error instanceof Error) {
+                throw new Error(error.message, { cause: error }); 
+            }
+            
+            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
+        }
+    }
+
+    async anonymizeUser(idTarget: string, idDeleter: string, ip: string){
+        if(idTarget !== idDeleter){
+            throw new Error("Acesso negado: apenas o dono da conta pode deletar ela.");
+        }
+
+        const userTarget = await userRepository.getUserById(idTarget);
+        if(!userTarget){
+            throw new Error("Usuário não encontrado");
+        }
+        if(userTarget.role.name === "ADMIN"){
+            throw new Error("O admin não pode deletar a sua conta");
+        }
+
+        try {
+            const deleteUser = await userRepository.anonymizeUser(idTarget);
+            await auditService.register("USER_DELETE", "SUCCESS", userTarget.email, idTarget, ip);
+            return deleteUser
+        } catch (error) {
+            await auditService.register("USER_DELETE", "FAILED_DB_CONSTRAINT", userTarget.email, idTarget, ip);
+            
+            if (error instanceof Error) {
+                throw new Error(error.message, { cause: error }); 
+            }
+            
+            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
+        }
     }
 }

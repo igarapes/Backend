@@ -15,6 +15,7 @@ model User {
   password     String
   cpf          String   @unique
   firstAccess  Boolean  @default(true)
+  isActivate   Boolean  @default(true)
   dataConsent Boolean @default(false)
 
   roleId       String

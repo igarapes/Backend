@@ -1,5 +1,7 @@
-import { prisma } from "../../config/db";
 import { Prisma } from "@prisma/client";
+import crypto from "crypto";
+
+import { prisma } from "../../config/db";
 import type { CreateUserDTO, UpdateUserDTO } from "./user.schema";
 
 export class UserRepository {
@@ -48,41 +50,6 @@ export class UserRepository {
         return deleteUser;
     }
 
-    async getAllUserAdmin(){
-        const users = await prisma.user.findMany({
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                cpf: true,
-                role: true,
-                firstAccess: true
-            }
-        });
-        return users;
-    }
-
-    async getAllUserTecnico(){
-        const users = await prisma.user.findMany({
-            where:{
-                role: {
-                    name: "USUARIO" 
-                }
-            },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                cpf: true,
-                role: true,
-                firstAccess: true
-            }
-        });
-        return users;
-    }
-
     async getUserById(id: string){
         const user = await prisma.user.findUnique({
             where:{id}, 
@@ -118,5 +85,41 @@ export class UserRepository {
             throw error; 
         }
 
+    }
+
+    async inactivateUser(id: string, updaterID: string){
+        const user = await prisma.user.update({
+            where:{id},
+            data:{
+                isActivate: false,
+                updatedById: updaterID
+            }
+        });
+
+        return {
+            ...user,
+            cpf: "***.***.***-**"
+        };
+    }
+
+    async anonymizeUser(id: string) {
+        const uniqueSuffix = crypto.randomBytes(4).toString("hex"); 
+
+        const anonymizedUser = await prisma.user.update({
+            where: { id: id },
+            data: {
+                name: "Usuário Excluído",
+                email: `excluido_${uniqueSuffix}@anonymize.com.br`,
+                phone: `DEL${uniqueSuffix}`,
+                cpf: `DEL${uniqueSuffix}`,
+                password: "dados_anonimizados", 
+                isActivate: false
+            }
+        });
+
+        return {
+            ...anonymizedUser,
+            cpf: "***.***.***-**"
+        };
     }
 }
