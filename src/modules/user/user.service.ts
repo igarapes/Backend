@@ -158,4 +158,24 @@ export class UserService {
             throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
         }
     }
+
+    async listUsers(requesterRole: string, requesterId: string, ip: string){
+        if(requesterRole === "USUARIO"){
+            throw new Error("Acesso negado: usuário não pode listar usuários.")
+        }
+
+        try {
+            const listUsers = await userRepository.listUsers(requesterRole);
+            await auditService.register("LIST_USERS", "SUCCESS", requesterId, requesterId, ip);
+            return listUsers;
+        } catch (error) {
+            await auditService.register("LIST_USERS", "FAILED_DB_CONSTRAINT", requesterId, requesterId, ip);
+            
+            if (error instanceof Error) {
+                throw new Error(error.message, { cause: error }); 
+            }
+            
+            throw new Error("Erro desconhecido ao tentar buscar os usuários no banco de dados.", { cause: error });
+        }
+    }
 }

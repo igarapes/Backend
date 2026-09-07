@@ -587,3 +587,81 @@ describe('Integração: DELETE /api/user/:id', () => {
         expect(response.body.cpf).toBe("***.***.***-**"); 
     });
 });
+
+describe('Integração: GET /api/user', () => {
+    let adminToken: string;
+    let tecnicoToken: string;
+    let usuarioToken: string;
+
+    beforeAll(async () => {
+        await prisma.user.deleteMany();
+
+        const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
+        const tecnicoRole = await prisma.role.findFirst({ where: { name: 'TECNICO' } });
+        const usuarioRole = await prisma.role.findFirst({ where: { name: 'USUARIO' } });
+
+        const admin = await prisma.user.create({
+            data: { name: 'Admin Master', email: 'admin_get@igarape.com.br', phone: '61999990001', cpf: '11111111111', password: 'hash', firstAccess: false, roleId: adminRole!.id }
+        });
+        adminToken = jwt.sign({ id: admin.id, role: 'ADMIN' }, process.env.AUTH_TOKEN || 'test-secret', { expiresIn: '1h' });
+
+        const tecnico1 = await prisma.user.create({
+            data: { name: 'Tecnico 1', email: 'tec1_get@igarape.com.br', phone: '61999990002', cpf: '22222222222', password: 'hash', firstAccess: false, roleId: tecnicoRole!.id }
+        });
+        tecnicoToken = jwt.sign({ id: tecnico1.id, role: 'TECNICO' }, process.env.AUTH_TOKEN || 'test-secret', { expiresIn: '1h' });
+
+        await prisma.user.create({
+            data: { name: 'Tecnico 2', email: 'tec2_get@igarape.com.br', phone: '61999990003', cpf: '33333333333', password: 'hash', firstAccess: false, roleId: tecnicoRole!.id }
+        });
+
+        const usuario1 = await prisma.user.create({
+            data: { name: 'Usuario 1', email: 'user1_get@igarape.com.br', phone: '61999990004', cpf: '44444444444', password: 'hash', firstAccess: false, roleId: usuarioRole!.id }
+        });
+        usuarioToken = jwt.sign({ id: usuario1.id, role: 'USUARIO' }, process.env.AUTH_TOKEN || 'test-secret', { expiresIn: '1h' });
+
+        await prisma.user.create({
+            data: { name: 'Usuario 2', email: 'user2_get@igarape.com.br', phone: '61999990005', cpf: '55555555555', password: 'hash', firstAccess: false, roleId: usuarioRole!.id }
+        });
+    });
+
+    afterAll(async () => {
+        await prisma.user.deleteMany();
+        await desconectarBancoDeDados();
+    });
+
+    it('Deve permitir que o ADMIN liste todos os usuários cadastrados no banco', async () => {
+        const response = await request(server)
+            .get('/api/user')
+            .set('Cookie', [`token=${adminToken}`]);
+
+        expect(response.status).toBe(200);
+        expect(Array.isArray(response.body)).toBeTruthy();
+        expect(response.body.length).toBe(5); 
+        
+        expect(response.body[0]).not.toHaveProperty('password');
+        expect(response.body[0].cpf).toBe('***.***.***-**');
+    });
+
+    it('Deve restringir a listagem do TECNICO apenas a perfis do tipo USUARIO (Menor Privilégio)', async () => {
+        const response = await request(server)
+            .get('/api/user')
+            .set('Cookie', [`token=${tecnicoToken}`]);
+
+        expect(response.status).toBe(200);
+        expect(Array.isArray(response.body)).toBeTruthy();
+        
+        expect(response.body.length).toBe(2); 
+
+        response.body.forEach((user: any) => {
+            expect(user.role.name).toBe('USUARIO');
+        });
+    });
+
+    it('Deve bloquear (403) a tentativa de um USUARIO comum acessar a listagem', async () => {
+        const response = await request(server)
+            .get('/api/user')
+            .set('Cookie', [`token=${usuarioToken}`]);
+
+        expect(response.status).toBe(403);
+    });
+});

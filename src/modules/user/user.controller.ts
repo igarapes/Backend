@@ -82,4 +82,23 @@ export class UserController {
             return res.status(500).json({ message: "Ocorreu um erro interno inesperado." });
         }
     }
+
+    async listUsers(req:AuthRequest, res: Response){
+        const requesterId = req.userId as string;
+        const requesterRole = req.roleId as string; 
+        const ip = req.ip as string;
+
+        try {
+            const response = await userService.listUsers(requesterRole, requesterId, ip);
+            return res.status(200).json(response);
+        } catch (error) {
+            if (error instanceof Error) {
+                if (error.message.includes("Acesso negado")) {
+                    return res.status(403).json({ message: error.message });
+                }
+                return res.status(400).json({ message: error.message });
+            }
+            return res.status(500).json({ message: "Ocorreu um erro interno inesperado." });
+        }
+    }
 }

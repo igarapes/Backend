@@ -122,4 +122,44 @@ export class UserRepository {
             cpf: "***.***.***-**"
         };
     }
+
+    async listUsers(requesterRole: string) {
+        const whereClause: Prisma.UserWhereInput = {};
+
+        if (requesterRole === "TECNICO") {
+            whereClause.role = {
+                is: {
+                    name: "USUARIO"
+                }
+            };
+        }
+
+        const users = await prisma.user.findMany({
+            where: whereClause,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                cpf: true,
+                isActivate: true,
+                firstAccess: true,
+                createdAt: true,
+                role: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: "desc" 
+            }
+        });
+
+        return users.map(user => ({
+            ...user,
+            cpf: "***.***.***-**"
+        }));
+    }
 }

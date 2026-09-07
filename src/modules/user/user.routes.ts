@@ -187,4 +187,28 @@ userRoutes.delete(
     userController.anonymizeUser.bind(userController)
 );
 
+/**
+ * @swagger
+ * /user:
+ *   get:
+ *     summary: Lista os usuários cadastrados no sistema
+ *     description: Retorna uma lista de usuários preservando a privacidade (senhas omitidas e CPFs mascarados). O retorno é filtrado pelo Princípio do Menor Privilégio - Administradores podem visualizar todos os usuários do sistema; Técnicos podem visualizar apenas perfis do tipo "USUARIO". Perfis comuns ("USUARIO") não têm acesso a esta rota.
+ *     tags: [Usuários]
+ *     responses:
+ *       200:
+ *         description: Lista de usuários retornada com sucesso.
+ *       401:
+ *         description: Acesso negado. Token de autenticação ausente ou inválido.
+ *       403:
+ *         description: Acesso negado. Usuário comum tentando acessar a listagem.
+ *       500:
+ *         description: Erro interno no servidor.
+ */
+userRoutes.get(
+    "/",
+    authenticated,
+    checkRole(["ADMIN", "TECNICO"]),
+    userController.listUsers.bind(userController)
+);
+
 export { userRoutes };
