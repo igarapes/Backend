@@ -60,13 +60,25 @@ describe('Integração: POST /api/user', () => {
             { expiresIn: '1h' }
         );
 
+        await prisma.user.deleteMany({ where: { email: { contains: 'test' } } });
+
+        const tecnicoUser = await prisma.user.create({
+            data: {
+                name: 'Tecnico Criador',
+                email: 'tecnico_criador_test@igarape.com.br',
+                phone: '61988880999',
+                cpf: '90513873041',
+                password: 'hashedpassword',
+                firstAccess: false,
+                roleId: tecnicoRole.id
+            }
+        });
+
         tecnicoToken = jwt.sign(
-            { id: realAdminId, role: 'TECNICO' }, 
-            process.env.AUTH_TOKEN as string, 
+            { id: tecnicoUser.id, role: 'TECNICO' },
+            process.env.AUTH_TOKEN as string,
             { expiresIn: '1h' }
         );
-
-        await prisma.user.deleteMany({ where: { email: { contains: 'test' } } });
     });
 
     afterEach(() => {
@@ -402,12 +414,17 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
             data: { name: 'Usuario Inativador', email: 'usuario1_patch@igarape.com.br', phone: '61988886664', cpf: '04859384004', password: 'hash', firstAccess: false, roleId: usuarioRole!.id }
         });
         usuario1Id = usuario1.id;
-        usuarioToken = jwt.sign({ id: usuario1Id, role: 'USUARIO' }, process.env.AUTH_TOKEN as string, { expiresIn: '1h' });
 
         const usuario2 = await prisma.user.create({
             data: { name: 'Usuario Alvo', email: 'usuario2_patch@igarape.com.br', phone: '61988886665', cpf: '04859384005', password: 'hash', firstAccess: false, roleId: usuarioRole!.id }
         });
         usuario2Id = usuario2.id;
+
+        // Usuário que nunca é inativado nos testes: usado para validar o 403 de quem não tem permissão
+        const usuario3 = await prisma.user.create({
+            data: { name: 'Usuario Sem Permissao', email: 'usuario3_patch@igarape.com.br', phone: '61988886666', cpf: '04859384006', password: 'hash', firstAccess: false, roleId: usuarioRole!.id }
+        });
+        usuarioToken = jwt.sign({ id: usuario3.id, role: 'USUARIO' }, process.env.AUTH_TOKEN as string, { expiresIn: '1h' });
     });
 
     afterAll(async () => {
@@ -561,17 +578,17 @@ describe('Integração: DELETE /api/user/:id', () => {
         expect(response.status).toBe(400);
     });
 
-    it('Deve retornar erro (400) se o usuário alvo não existir no banco', async () => {
+    it('Deve retornar 401 se o token for de um usuário que não existe no banco', async () => {
         const fakeUuid = '555e4567-e89b-12d3-a456-426614174000';
-        
+
         const fakeToken = jwt.sign({ id: fakeUuid, role: 'USUARIO' }, process.env.AUTH_TOKEN as string, { expiresIn: '1h' });
 
         const response = await request(server)
             .delete(`/api/user/${fakeUuid}`)
             .set('Cookie', [`token=${fakeToken}`]);
 
-        expect(response.status).toBe(400);
-        expect(response.body.message).toContain("Usuário não encontrado");
+        expect(response.status).toBe(401);
+        expect(response.body.message).toContain("Usuário não encontrado ou inativo");
     });
 
     it('Deve permitir (200) que um USUARIO exclua (anonimize) a própria conta', async () => {

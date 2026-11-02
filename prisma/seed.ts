@@ -32,7 +32,7 @@ async function main() {
     data: {
       name: "Administrador Igarapés",
       email: "admin@igarape.com.br",
-      cpf: hashCpf("00000000000"), 
+      cpf: hashCpf("72632532086"), 
       phone: "61999999999",
       password: defaultPassword,
       firstAccess: true,
@@ -46,7 +46,7 @@ async function main() {
       {
         name: "Técnico Silva",
         email: "tecnico1@igarape.com.br",
-        cpf: hashCpf("11111111111"),
+        cpf: hashCpf("00583170072"),
         phone: "61988880001",
         password: defaultPassword,
         firstAccess: true,
@@ -55,7 +55,7 @@ async function main() {
       {
         name: "Técnico Souza",
         email: "tecnico2@igarape.com.br",
-        cpf: hashCpf("22222222222"),
+        cpf: hashCpf("84040582020"),
         phone: "61988880002",
         password: defaultPassword,
         firstAccess: true,
@@ -70,7 +70,7 @@ async function main() {
       {
         name: "Usuário Alfa",
         email: "usuario1@igarape.com.br",
-        cpf: hashCpf("33333333331"),
+        cpf: hashCpf("68543997003"),
         phone: "61977770001",
         password: defaultPassword,
         firstAccess: true,
@@ -79,7 +79,7 @@ async function main() {
       {
         name: "Usuário Bravo",
         email: "usuario2@igarape.com.br",
-        cpf: hashCpf("33333333332"),
+        cpf: hashCpf("22690877040"),
         phone: "61977770002",
         password: defaultPassword,
         firstAccess: true,
@@ -88,7 +88,7 @@ async function main() {
       {
         name: "Usuário Charlie",
         email: "usuario3@igarape.com.br",
-        cpf: hashCpf("33333333333"),
+        cpf: hashCpf("04064565002"),
         phone: "61977770003",
         password: defaultPassword,
         firstAccess: true,
@@ -97,7 +97,7 @@ async function main() {
       {
         name: "Usuário Delta",
         email: "usuario4@igarape.com.br",
-        cpf: hashCpf("33333333334"),
+        cpf: hashCpf("20447735039"),
         phone: "61977770004",
         password: defaultPassword,
         firstAccess: true,
@@ -106,7 +106,7 @@ async function main() {
       {
         name: "Usuário Echo",
         email: "usuario5@igarape.com.br",
-        cpf: hashCpf("33333333335"),
+        cpf: hashCpf("12838854097"),
         phone: "61977770005",
         password: defaultPassword,
         firstAccess: true,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-function isValidCPF(cpf: string) {
+export function isValidCPF(cpf: string) {
   const cleanCPF = cpf.replace(/[^\d]+/g, "");
   
   if (cleanCPF.length !== 11 || /^(\d)\1{10}$/.test(cleanCPF)) return false;

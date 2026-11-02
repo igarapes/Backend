@@ -2,11 +2,17 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 import { AuthRepository } from "./auth.repository.js";
+import { hashCpf } from "../../shared/crypto.js";
+import {isValidCPF} from "../user/user.schema.js"
 
 const authRepository = new AuthRepository();
 
 export class AuthService {
     async makeLogin(identifier: string, password: string) {
+        if(isValidCPF(identifier)){
+            identifier = hashCpf(identifier)
+        }
+        
         const user = await authRepository.findUserByIdentifier(identifier);
         
         if (!user) {
@@ -18,6 +24,8 @@ export class AuthService {
         if (!comparePassword) {
             throw new Error("Credenciais inválidas");
         }
+
+        if(!user.isActivate) throw new Error("Credenciais inválidas")
         
         const secret = process.env.AUTH_TOKEN;
 

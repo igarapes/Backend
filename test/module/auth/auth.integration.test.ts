@@ -1,11 +1,13 @@
 import request from "supertest";
 import { execSync } from "child_process";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 import { server } from "../../../src/server";
 import { AuthService } from "../../../src/modules/auth/auth.service";
 import { AuditService } from "../../../src/shared/audit";
 import { desconectarBancoDeDados, prisma } from "../../../src/config/db";
+import { hashCpf } from "../../../src/shared/crypto";
 
 describe("Teste de integração: /api/auth/login", () => {
     beforeAll(() => {
@@ -392,7 +394,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
             });
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe("Acesso negado: ID não encontrado no token");
+        expect(response.body.message).toBe("Acesso negado: Token inválido ou expirado.");
     });
 
     it("Deve retornar 400 se o AuthService.updatePassword lançar um erro comum", async () => {
@@ -449,5 +451,74 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         
         consoleSpy.mockRestore();
         auditSpy.mockRestore();
+    });
+});
+
+describe("Teste de integração: login por CPF e bloqueio de usuários inativos", () => {
+    const senha = "Senha@123";
+    const emails = ["cpf_login@igarape.com.br", "inativo_login@igarape.com.br", "inativado_depois@igarape.com.br"];
+
+    beforeAll(async () => {
+        await prisma.user.deleteMany({ where: { email: { in: emails } } });
+
+        const usuarioRole = await prisma.role.findFirst({ where: { name: "USUARIO" } });
+        const hashedPassword = await bcrypt.hash(senha, 10);
+
+        await prisma.user.createMany({
+            data: [
+                { name: "Login CPF", email: emails[0]!, phone: "61977771001", cpf: hashCpf("52998224725"), password: hashedPassword, firstAccess: false, roleId: usuarioRole!.id },
+                { name: "Login Inativo", email: emails[1]!, phone: "61977771002", cpf: hashCpf("86288366757"), password: hashedPassword, firstAccess: false, isActivate: false, roleId: usuarioRole!.id },
+                { name: "Inativado Depois", email: emails[2]!, phone: "61977771003", cpf: hashCpf("71428793860"), password: hashedPassword, firstAccess: false, roleId: usuarioRole!.id },
+            ]
+        });
+    });
+
+    afterAll(async () => {
+        await prisma.user.deleteMany({ where: { email: { in: emails } } });
+        await desconectarBancoDeDados();
+    });
+
+    it("Deve realizar o login com CPF com máscara", async () => {
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: "529.982.247-25", password: senha });
+
+        expect(response.status).toBe(200);
+    });
+
+    it("Deve realizar o login com CPF sem máscara", async () => {
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: "52998224725", password: senha });
+
+        expect(response.status).toBe(200);
+    });
+
+    it("Deve retornar 401 com mensagem genérica ao logar com usuário inativo", async () => {
+        const response = await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: emails[1], password: senha });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Credenciais inválidas");
+    });
+
+    it("Deve retornar 401 ao usar um token emitido antes da inativação", async () => {
+        const loginResponse = await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: emails[2], password: senha });
+
+        expect(loginResponse.status).toBe(200);
+        const cookies = loginResponse.headers["set-cookie"];
+
+        await prisma.user.update({ where: { email: emails[2] }, data: { isActivate: false } });
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({ newPassword: "NovaSenhaSegura@2!", confirmPassword: "NovaSenhaSegura@2!" });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toContain("Usuário não encontrado ou inativo");
     });
 });
