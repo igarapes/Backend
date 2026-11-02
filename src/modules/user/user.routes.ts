@@ -5,6 +5,7 @@ import { validateData } from "../../shared/middleware/validadeData.js";
 import { authenticated } from "../../shared/middleware/authenticated.js";
 import { checkRole } from "../../shared/middleware/checkRole.js";
 import { schemaCreate, schemaIdParam, schemaUpdate } from "./user.schema.js";
+import { requirePasswordChanged } from "../../shared/middleware/requirePasswordChanged.js";
 
 const userRoutes = Router();
 const userController = new UserController();
@@ -59,6 +60,7 @@ const userController = new UserController();
 userRoutes.post(
     "/", 
     authenticated,
+    requirePasswordChanged,
     checkRole(["ADMIN", "TECNICO"]),
     validateData(schemaCreate, "body"),
     userController.createUser.bind(userController)
@@ -113,7 +115,8 @@ userRoutes.post(
  */
 userRoutes.put(
     "/:id",
-    authenticated,                                 
+    authenticated,
+    requirePasswordChanged,                                 
     checkRole(["ADMIN", "TECNICO", "USUARIO"]),               
     validateData(schemaIdParam, "params"),         
     validateData(schemaUpdate, "body"),            
@@ -150,6 +153,7 @@ userRoutes.put(
 userRoutes.patch( 
     "/:id/inactivate", 
     authenticated,
+    requirePasswordChanged,
     checkRole(["ADMIN", "TECNICO"]), 
     validateData(schemaIdParam, "params"),
     userController.inactivateUser.bind(userController)
@@ -183,6 +187,7 @@ userRoutes.patch(
 userRoutes.delete(
     "/:id",
     authenticated,
+    requirePasswordChanged,
     validateData(schemaIdParam, "params"),
     userController.anonymizeUser.bind(userController)
 );
@@ -207,6 +212,7 @@ userRoutes.delete(
 userRoutes.get(
     "/",
     authenticated,
+    requirePasswordChanged,
     checkRole(["ADMIN", "TECNICO"]),
     userController.listUsers.bind(userController)
 );

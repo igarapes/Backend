@@ -522,3 +522,56 @@ describe("Teste de integração: login por CPF e bloqueio de usuários inativos"
         expect(response.body.message).toContain("Usuário não encontrado ou inativo");
     });
 });
+
+describe("Teste de integração: troca de senha obrigatória no primeiro acesso", () => {
+    const email = "primeiro_acesso@igarape.com.br";
+    const senhaProvisoria = "Provisoria@123";
+    let cookies: string[];
+
+    beforeAll(async () => {
+        await prisma.user.deleteMany({ where: { email } });
+
+        const tecnicoRole = await prisma.role.findFirst({ where: { name: "TECNICO" } });
+
+        await prisma.user.create({
+            data: { name: "Primeiro Acesso", email, phone: "61977771004", cpf: hashCpf("39053344705"), password: await bcrypt.hash(senhaProvisoria, 10), firstAccess: true, roleId: tecnicoRole!.id }
+        });
+
+        const loginResponse = await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: email, password: senhaProvisoria });
+
+        cookies = loginResponse.headers["set-cookie"] as unknown as string[];
+    });
+
+    afterAll(async () => {
+        await prisma.user.deleteMany({ where: { email } });
+        await desconectarBancoDeDados();
+    });
+
+    it("Deve bloquear (403) as rotas de usuário enquanto a senha provisória não for trocada", async () => {
+        const response = await request(server)
+            .get("/api/user")
+            .set("Cookie", cookies);
+
+        expect(response.status).toBe(403);
+        expect(response.body.message).toBe("Troque sua senha provisória para continuar.");
+    });
+
+    it("Deve permitir a troca de senha durante o primeiro acesso", async () => {
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({ newPassword: "NovaSenhaSegura@2!", confirmPassword: "NovaSenhaSegura@2!" });
+
+        expect(response.status).toBe(200);
+    });
+
+    it("Deve liberar as rotas com o mesmo cookie depois da troca de senha", async () => {
+        const response = await request(server)
+            .get("/api/user")
+            .set("Cookie", cookies);
+
+        expect(response.status).toBe(200);
+    });
+});

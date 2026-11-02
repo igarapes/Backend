@@ -52,6 +52,11 @@ describe('Integração: POST /api/user', () => {
             });
         }
         
+        // O admin do seed nasce com firstAccess = true e seria barrado pelo requirePasswordChanged
+        if (adminUser.firstAccess) {
+            adminUser = await prisma.user.update({ where: { id: adminUser.id }, data: { firstAccess: false } });
+        }
+
         realAdminId = adminUser.id;
 
         adminToken = jwt.sign(
