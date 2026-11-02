@@ -29,6 +29,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
       AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+      DATA_SALT: ${{ secrets.DATA_SALT }}
       NODE_ENV: test
 
     steps:

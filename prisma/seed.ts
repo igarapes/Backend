@@ -1,5 +1,8 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+
+import { hashCpf } from "../src/shared/crypto.js";
 
 const prisma = new PrismaClient();
 
@@ -29,7 +32,7 @@ async function main() {
     data: {
       name: "Administrador Igarapés",
       email: "admin@igarape.com.br",
-      cpf: "00000000000", 
+      cpf: hashCpf("00000000000"), 
       phone: "61999999999",
       password: defaultPassword,
       firstAccess: true,
@@ -43,7 +46,7 @@ async function main() {
       {
         name: "Técnico Silva",
         email: "tecnico1@igarape.com.br",
-        cpf: "11111111111",
+        cpf: hashCpf("11111111111"),
         phone: "61988880001",
         password: defaultPassword,
         firstAccess: true,
@@ -52,7 +55,7 @@ async function main() {
       {
         name: "Técnico Souza",
         email: "tecnico2@igarape.com.br",
-        cpf: "22222222222",
+        cpf: hashCpf("22222222222"),
         phone: "61988880002",
         password: defaultPassword,
         firstAccess: true,
@@ -67,7 +70,7 @@ async function main() {
       {
         name: "Usuário Alfa",
         email: "usuario1@igarape.com.br",
-        cpf: "33333333331",
+        cpf: hashCpf("33333333331"),
         phone: "61977770001",
         password: defaultPassword,
         firstAccess: true,
@@ -76,7 +79,7 @@ async function main() {
       {
         name: "Usuário Bravo",
         email: "usuario2@igarape.com.br",
-        cpf: "33333333332",
+        cpf: hashCpf("33333333332"),
         phone: "61977770002",
         password: defaultPassword,
         firstAccess: true,
@@ -85,7 +88,7 @@ async function main() {
       {
         name: "Usuário Charlie",
         email: "usuario3@igarape.com.br",
-        cpf: "33333333333",
+        cpf: hashCpf("33333333333"),
         phone: "61977770003",
         password: defaultPassword,
         firstAccess: true,
@@ -94,7 +97,7 @@ async function main() {
       {
         name: "Usuário Delta",
         email: "usuario4@igarape.com.br",
-        cpf: "33333333334",
+        cpf: hashCpf("33333333334"),
         phone: "61977770004",
         password: defaultPassword,
         firstAccess: true,
@@ -103,7 +106,7 @@ async function main() {
       {
         name: "Usuário Echo",
         email: "usuario5@igarape.com.br",
-        cpf: "33333333335",
+        cpf: hashCpf("33333333335"),
         phone: "61977770005",
         password: defaultPassword,
         firstAccess: true,

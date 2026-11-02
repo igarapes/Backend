@@ -5,6 +5,7 @@ import { UserRepository } from "./user.repository.js";
 import { sendTemporaryPasswordEmail } from "../../shared/email.js";
 import { AuditService } from "../../shared/audit.js";
 import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
+import { hashCpf } from "../../shared/crypto.js";
 
 const userRepository = new UserRepository();
 const auditService = new AuditService();
@@ -12,11 +13,6 @@ const auditService = new AuditService();
 function generateCompliantPassword(): string {
     const randomHex = crypto.randomBytes(3).toString("hex"); 
     return `Aa23${randomHex}1@`; 
-}
-
-function hashSensitiveData(data: string): string {
-    const salt = process.env.DATA_SALT || "chave_secreta_padrao";
-    return crypto.createHash("sha256").update(data + salt).digest("hex");
 }
 
 export class UserService { 
@@ -28,7 +24,7 @@ export class UserService {
 
         const randomPassword = generateCompliantPassword();
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
-        const hashedCpf = hashSensitiveData(userObj.cpf);
+        const hashedCpf = hashCpf(userObj.cpf);
 
         let createdUser;
         try {
