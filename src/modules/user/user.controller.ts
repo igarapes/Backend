@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
-import { UserService } from "./user.service";
-import type { AuthRequest } from "../../shared/middleware/authenticated";
+import { UserService } from "./user.service.js";
+import type { AuthRequest } from "../../shared/middleware/authenticated.js";
 
 const userService = new UserService();
 

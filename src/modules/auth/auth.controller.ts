@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 
-import { AuthService } from "./auth.service";
-import { AuditService } from "../../shared/audit";
-import type { AuthRequest } from "../../shared/middleware/authenticated";
+import { AuthService } from "./auth.service.js";
+import { AuditService } from "../../shared/audit.js";
+import type { AuthRequest } from "../../shared/middleware/authenticated.js";
 
 const auditService = new AuditService();
 const authService = new AuthService();

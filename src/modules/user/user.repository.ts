@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 
-import { prisma } from "../../config/db";
-import type { CreateUserDTO, UpdateUserDTO } from "./user.schema";
+import { prisma } from "../../config/db.js";
+import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
 
 export class UserRepository {
     async createUser(userObj: CreateUserDTO, id: string, role: string, password: string, hashedCpf: string) {

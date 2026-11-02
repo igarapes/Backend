@@ -1,4 +1,4 @@
-import {prisma} from "../../config/db"
+import {prisma} from "../../config/db.js"
 
 export class AuthRepository {
     async findUserByIdentifier(identifier: string) {

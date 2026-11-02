@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-import { AuthRepository } from "./auth.repository";
+import { AuthRepository } from "./auth.repository.js";
 
 const authRepository = new AuthRepository();
 

@@ -1,9 +1,9 @@
 import { Router } from "express";
 
-import { AuthController } from "./auth.controller";
-import { validateData } from "../../shared/middleware/validadeData";
-import { authenticated } from "../../shared/middleware/authenticated";
-import { schemaChangePassword, schemaLogin } from "./auth.schema";
+import { AuthController } from "./auth.controller.js";
+import { validateData } from "../../shared/middleware/validadeData.js";
+import { authenticated } from "../../shared/middleware/authenticated.js";
+import { schemaChangePassword, schemaLogin } from "./auth.schema.js";
 
 const authRoutes = Router();
 const authController = new AuthController();

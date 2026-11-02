@@ -1,11 +1,12 @@
+import "dotenv/config";
 import express from "express";
 import cors from 'cors';
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
 
-import { swaggerSpec } from "./config/swagger";
-import { routes } from "./config/routes";
+import { swaggerSpec } from "./config/swagger.js";
+import { routes } from "./config/routes.js";
 
 const server = express();
 

@@ -1,10 +1,10 @@
 import { Router } from "express";
 
-import { UserController } from "./user.controller";
-import { validateData } from "../../shared/middleware/validadeData";
-import { authenticated } from "../../shared/middleware/authenticated";
-import { checkRole } from "../../shared/middleware/checkRole";
-import { schemaCreate, schemaIdParam, schemaUpdate } from "./user.schema";
+import { UserController } from "./user.controller.js";
+import { validateData } from "../../shared/middleware/validadeData.js";
+import { authenticated } from "../../shared/middleware/authenticated.js";
+import { checkRole } from "../../shared/middleware/checkRole.js";
+import { schemaCreate, schemaIdParam, schemaUpdate } from "./user.schema.js";
 
 const userRoutes = Router();
 const userController = new UserController();

@@ -1,10 +1,10 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto"; 
 
-import { UserRepository } from "./user.repository";
-import { sendTemporaryPasswordEmail } from "../../shared/email";
-import { AuditService } from "../../shared/audit";
-import type { CreateUserDTO, UpdateUserDTO } from "./user.schema";
+import { UserRepository } from "./user.repository.js";
+import { sendTemporaryPasswordEmail } from "../../shared/email.js";
+import { AuditService } from "../../shared/audit.js";
+import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
 
 const userRepository = new UserRepository();
 const auditService = new AuditService();
