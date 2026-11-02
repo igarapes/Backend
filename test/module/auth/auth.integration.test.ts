@@ -575,3 +575,68 @@ describe("Teste de integração: troca de senha obrigatória no primeiro acesso"
         expect(response.status).toBe(200);
     });
 });
+
+describe("Teste de integração: /api/auth/me e /api/auth/logout", () => {
+    const email = "sessao_me@igarape.com.br";
+    const senha = "Senha@123";
+
+    beforeAll(async () => {
+        await prisma.user.deleteMany({ where: { email } });
+
+        const usuarioRole = await prisma.role.findFirst({ where: { name: "USUARIO" } });
+
+        await prisma.user.create({
+            data: { name: "Sessao Me", email, phone: "61977771005", cpf: hashCpf("16899535009"), password: await bcrypt.hash(senha, 10), firstAccess: true, roleId: usuarioRole!.id }
+        });
+    });
+
+    afterAll(async () => {
+        await prisma.user.deleteMany({ where: { email } });
+        await desconectarBancoDeDados();
+    });
+
+    async function login() {
+        return request(server)
+            .post("/api/auth/login")
+            .send({ identifier: email, password: senha });
+    }
+
+    it("O login não deve devolver o token no corpo, apenas os dados do usuário", async () => {
+        const response = await login();
+
+        expect(response.status).toBe(200);
+        expect(response.headers["set-cookie"][0]).toMatch(/token=/);
+        expect(response.body.token).toBeUndefined();
+        expect(response.body.user).toMatchObject({ name: "Sessao Me", role: "USUARIO", firstAccess: true });
+        expect(response.body.user.id).toBeDefined();
+    });
+
+    it("Deve retornar os dados do usuário logado sem senha e sem CPF, mesmo no primeiro acesso", async () => {
+        const cookies = (await login()).headers["set-cookie"];
+
+        const response = await request(server)
+            .get("/api/auth/me")
+            .set("Cookie", cookies);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({ name: "Sessao Me", email, role: "USUARIO", firstAccess: true });
+        expect(response.body.password).toBeUndefined();
+        expect(response.body.cpf).toBeUndefined();
+    });
+
+    it("Deve retornar 401 no /me sem cookie", async () => {
+        const response = await request(server).get("/api/auth/me");
+
+        expect(response.status).toBe(401);
+    });
+
+    it("Deve apagar o cookie do token no logout, mesmo sem estar autenticado", async () => {
+        const response = await request(server).post("/api/auth/logout");
+
+        expect(response.status).toBe(200);
+        const cookie = response.headers["set-cookie"][0];
+        expect(cookie).toMatch(/^token=;/);
+        expect(cookie).toMatch(/Expires=Thu, 01 Jan 1970/);
+        expect(cookie).toMatch(/HttpOnly/);
+    });
+});

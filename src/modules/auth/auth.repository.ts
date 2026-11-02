@@ -13,6 +13,22 @@ export class AuthRepository {
         return user;
     }
 
+    async findUserById(id: string) {
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                firstAccess: true,
+                role: {
+                    select: { name: true }
+                }
+            }
+        });
+        return user;
+    }
+
     async updatePasswordFirstAccess(id: string, newPassword: string) {
         const userUptade = await prisma.user.update({
             where:{

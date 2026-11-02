@@ -33,15 +33,41 @@ export class AuthService {
             throw new Error("AUTH_TOKEN não configurado");
         }
 
-        return jwt.sign(
+        const token = jwt.sign(
             { 
-                id: user.id, 
+                id: user.id,
                 role: user.role.name,
                 primeiro_acesso: user.firstAccess
             }, 
             secret, 
-            { expiresIn: "1d" }
+            { expiresIn: "1d" },
         );
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role.name,
+                firstAccess: user.firstAccess
+            }
+        };
+    }
+
+    async getMe(id: string) {
+        const user = await authRepository.findUserById(id);
+
+        if (!user) {
+            throw new Error("Usuário não encontrado");
+        }
+
+        return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role.name,
+            firstAccess: user.firstAccess
+        };
     }
 
     async updatePassword(id: string, newPassword: string) {

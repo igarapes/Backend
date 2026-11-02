@@ -30,7 +30,17 @@ const authController = new AuthController();
  *                 example: Admin123!
  *     responses:
  *       200:
- *         description: Login realizado com sucesso. Token injetado via HttpOnly Cookie.
+ *         description: Login realizado com sucesso. O token é enviado apenas via HttpOnly Cookie; o corpo traz os dados básicos do usuário.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Login realizado com sucesso
+ *                 user:
+ *                   $ref: '#/components/schemas/UsuarioLogado'
  *       401:
  *         description: Credenciais inválidas.
  */
@@ -69,6 +79,69 @@ authRoutes.patch(
     authenticated,
     validateData(schemaChangePassword, "body"),
     authController.updatePassword.bind(authController)
+);
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     UsuarioLogado:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *           example: Administrador Igarapés
+ *         role:
+ *           type: string
+ *           enum: [ADMIN, TECNICO, USUARIO]
+ *         firstAccess:
+ *           type: boolean
+ *           example: false
+ *
+ * /auth/me:
+ *   get:
+ *     summary: Retorna os dados do usuário logado
+ *     description: Rota protegida (Token via HttpOnly Cookie). Usada pelo front para saber se existe sessão, qual o perfil e se o usuário ainda precisa trocar a senha provisória. Não é bloqueada no primeiro acesso.
+ *     tags: [Autenticação]
+ *     responses:
+ *       200:
+ *         description: Dados do usuário logado (sem senha e sem CPF).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/UsuarioLogado'
+ *                 - type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       example: admin@igarape.com.br
+ *       401:
+ *         description: Token ausente, inválido, expirado ou usuário inativo.
+ */
+authRoutes.get(
+    "/me",
+    authenticated,
+    authController.me.bind(authController)
+);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Encerra a sessão do usuário
+ *     description: Remove o cookie HttpOnly do token. Não exige autenticação, para que uma sessão com token expirado também possa ser encerrada.
+ *     tags: [Autenticação]
+ *     responses:
+ *       200:
+ *         description: Logout realizado com sucesso.
+ */
+authRoutes.post(
+    "/logout",
+    authController.logout.bind(authController)
 );
 
 export { authRoutes }
