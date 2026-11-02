@@ -82,7 +82,7 @@ describe("Teste de integração: /api/auth/login", () => {
 
         expect(decoded).toHaveProperty("id");
         expect(decoded).toHaveProperty("role");
-        expect(decoded.role).toBe("admin");
+        expect(decoded.role).toBe("ADMIN");
     });
 
 
