@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from 'cors';
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import morgan from "morgan";
@@ -9,19 +10,22 @@ import { swaggerSpec } from "./config/swagger.js";
 import { routes } from "./config/routes.js";
 
 const server = express();
+const isProduction = process.env.NODE_ENV === "production";
 
-server.disable("x-powered-by");
+server.use(helmet());
 
-server.set('trust proxy', 1);
+if (isProduction) {
+    server.set('trust proxy', 1);
+}
 
 server.use(cors({
   origin: (origin, callback) => {
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+    if (!origin || (!isProduction && /^http:\/\/localhost(:\d+)?$/.test(origin))) {
       callback(null, true);
     } else if (process.env.URL_FRONT && origin === process.env.URL_FRONT) {
       callback(null, true);
     } else {
-      callback(new Error("Bloqueado pela política de CORS"));
+      callback(null, false);
     }
   },
   credentials: true,

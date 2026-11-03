@@ -3,6 +3,7 @@ import { Router } from "express";
 import { AuthController } from "./auth.controller.js";
 import { validateData } from "../../shared/middleware/validadeData.js";
 import { authenticated } from "../../shared/middleware/authenticated.js";
+import { loginRateLimit } from "../../shared/middleware/loginRateLimit.js";
 import { schemaChangePassword, schemaLogin } from "./auth.schema.js";
 
 const authRoutes = Router();
@@ -43,9 +44,12 @@ const authController = new AuthController();
  *                   $ref: '#/components/schemas/UsuarioLogado'
  *       401:
  *         description: Credenciais inválidas.
+ *       429:
+ *         description: Muitas tentativas de login com falha. Limite de 5 tentativas a cada 15 minutos por IP.
  */
 authRoutes.post(
     "/login",
+    loginRateLimit,
     validateData(schemaLogin, "body"),
     authController.login.bind(authController)
 );

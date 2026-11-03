@@ -1,20 +1,15 @@
 import bcrypt from "bcrypt";
-import crypto from "crypto"; 
 
 import { UserRepository } from "./user.repository.js";
 import { sendTemporaryPasswordEmail } from "../../shared/email.js";
 import { AuditService } from "../../shared/audit.js";
 import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
 import { hashCpf } from "../../shared/crypto.js";
+import { generateCompliantPassword } from "../../shared/generatePassword.js";
 import { isPasswordPwned, PWNED_PASSWORD_MESSAGE } from "../../shared/pwnedPassword.js";
 
 const userRepository = new UserRepository();
 const auditService = new AuditService();
-
-function generateCompliantPassword(): string {
-    const randomHex = crypto.randomBytes(3).toString("hex"); 
-    return `Aa23${randomHex}1@`; 
-}
 
 export class UserService { 
     async createUser(userObj: CreateUserDTO, idCreator: string, creatorRole: string, ip: string) {

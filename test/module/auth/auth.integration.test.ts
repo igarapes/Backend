@@ -692,3 +692,37 @@ describe("Teste de integração: /api/auth/me e /api/auth/logout", () => {
         expect(cookie).toMatch(/HttpOnly/);
     });
 });
+
+describe("Teste de integração: limite de tentativas no /api/auth/login", () => {
+    afterAll(async () => {
+        await desconectarBancoDeDados();
+    });
+
+    async function loginComFalha() {
+        return request(server)
+            .post("/api/auth/login")
+            .send({ identifier: "nao_existe@igarape.com.br", password: "SenhaErrada@1" });
+    }
+
+    it("Deve bloquear (429) a partir da 6ª tentativa com falha", async () => {
+        for (let i = 0; i < 5; i++) {
+            const response = await loginComFalha();
+            expect(response.status).toBe(401);
+        }
+
+        const bloqueada = await loginComFalha();
+
+        expect(bloqueada.status).toBe(429);
+        expect(bloqueada.body.message).toBe("Muitas tentativas de login. Tente novamente em alguns minutos.");
+    });
+
+    it("Não deve contar os logins realizados com sucesso", async () => {
+        for (let i = 0; i < 6; i++) {
+            const response = await request(server)
+                .post("/api/auth/login")
+                .send({ identifier: "admin@igarape.com.br", password: "Admin123!" });
+
+            expect(response.status).toBe(200);
+        }
+    });
+});

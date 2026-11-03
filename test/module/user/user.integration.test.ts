@@ -1,6 +1,7 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import bcrypt from 'bcrypt';
 
 import { server } from '../../../src/server'; 
 import { prisma, desconectarBancoDeDados } from '../../../src/config/db';
@@ -112,7 +113,16 @@ describe('Integração: POST /api/user', () => {
         expect(response.body.cpf).toBe("***.***.***-**");
         
         const transporter = nodemailer.createTransport();
-        expect(transporter.sendMail).toHaveBeenCalled(); 
+        expect(transporter.sendMail).toHaveBeenCalled();
+
+        // A senha enviada por e-mail deve ser a mesma que ficou salva (com hash) no banco
+        const html = (transporter.sendMail as jest.Mock).mock.calls[0][0].html as string;
+        const senhaEnviada = html.match(/<h3[^>]*>\s*(\S+)\s*<\/h3>/)![1]!;
+        const usuarioSalvo = await prisma.user.findUnique({ where: { email: "sucesso_test@test.com" } });
+
+        expect(senhaEnviada).toHaveLength(12);
+        expect(usuarioSalvo!.password).not.toBe(senhaEnviada);
+        expect(await bcrypt.compare(senhaEnviada, usuarioSalvo!.password)).toBe(true);
     });
 
     it('Deve permitir que um ADMIN crie um usuário com perfil TECNICO', async () => {

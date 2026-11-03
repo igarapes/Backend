@@ -4,6 +4,7 @@ module.exports = {
   },
   testEnvironment: "node",
   setupFiles: ["<rootDir>/test/setup.ts"],
+  setupFilesAfterEnv: ["<rootDir>/test/setupAfterEnv.ts"],
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
