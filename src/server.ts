@@ -8,6 +8,7 @@ import morgan from "morgan";
 
 import { swaggerSpec } from "./config/swagger.js";
 import { routes } from "./config/routes.js";
+import { requireHttps } from "./shared/middleware/requireHttps.js";
 
 const server = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -16,6 +17,7 @@ server.use(helmet());
 
 if (isProduction) {
     server.set('trust proxy', 1);
+    server.use(requireHttps);
 }
 
 server.use(cors({
