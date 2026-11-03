@@ -2,6 +2,7 @@ import request from "supertest";
 import { execSync } from "child_process";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 import { server } from "../../../src/server";
 import { AuthService } from "../../../src/modules/auth/auth.service";
@@ -221,8 +222,27 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         });
 
         expect(user?.firstAccess).toBe(false);
+        expect(user?.password).not.toBe("NovaSenhaSegura@2!");
+        expect(await bcrypt.compare("NovaSenhaSegura@2!", user!.password)).toBe(true);
+        expect(user?.updatedById).toBe(user?.id);
     });
-        
+
+    it("Deve retornar erro 400 quando a senha passa do tamanho máximo", async () => {
+        const cookies = await realizarLogin();
+        const senhaLonga = "Aa1@" + "a".repeat(80);
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({
+                newPassword: senhaLonga,
+                confirmPassword: senhaLonga
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.details.newPassword._errors).toContain("A senha deve ter no máximo 64 caracteres");
+    });
+
     it("Deve returnar erro 400, quando a senha não tem o tamanho ideal", async () => {
         const cookies = await realizarLogin()
         const response = await request(server)
@@ -451,6 +471,38 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         
         consoleSpy.mockRestore();
         auditSpy.mockRestore();
+    });
+    it("Deve retornar 400 quando a nova senha aparece em vazamentos de dados", async () => {
+        const cookies = await realizarLogin();
+        const senhaVazada = "SenhaVazada@123";
+        const sha1 = crypto.createHash("sha1").update(senhaVazada).digest("hex").toUpperCase();
+        const fetchSpy = jest.spyOn(globalThis, "fetch")
+            .mockImplementationOnce(async () => new Response(`0000000000000000000000000000000000A:0\r\n${sha1.slice(5)}:42`));
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({ newPassword: senhaVazada, confirmPassword: senhaVazada });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Esta senha já apareceu em vazamentos de dados. Escolha outra senha.");
+        expect(fetchSpy).toHaveBeenLastCalledWith(`https://api.pwnedpasswords.com/range/${sha1.slice(0, 5)}`, expect.anything());
+    });
+
+    it("Deve permitir a troca de senha se a API de senhas vazadas estiver fora do ar", async () => {
+        const cookies = await realizarLogin();
+        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        jest.spyOn(globalThis, "fetch").mockImplementationOnce(async () => { throw new Error("API fora do ar"); });
+
+        const response = await request(server)
+            .patch("/api/auth/updatePassword")
+            .set("Cookie", cookies)
+            .send({ newPassword: "NovaSenhaSegura@2!", confirmPassword: "NovaSenhaSegura@2!" });
+
+        expect(response.status).toBe(200);
+        expect(consoleSpy).toHaveBeenCalled();
+
+        consoleSpy.mockRestore();
     });
 });
 

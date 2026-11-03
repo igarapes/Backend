@@ -3,6 +3,7 @@ module.exports = {
     "^.+\\.(t|j)sx?$": "@swc/jest",
   },
   testEnvironment: "node",
+  setupFiles: ["<rootDir>/test/setup.ts"],
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },

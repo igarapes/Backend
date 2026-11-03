@@ -6,6 +6,7 @@ import { sendTemporaryPasswordEmail } from "../../shared/email.js";
 import { AuditService } from "../../shared/audit.js";
 import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
 import { hashCpf } from "../../shared/crypto.js";
+import { isPasswordPwned, PWNED_PASSWORD_MESSAGE } from "../../shared/pwnedPassword.js";
 
 const userRepository = new UserRepository();
 const auditService = new AuditService();
@@ -74,6 +75,9 @@ export class UserService {
         }
 
         if(userObj.password){
+            if (await isPasswordPwned(userObj.password)) {
+                throw new Error(PWNED_PASSWORD_MESSAGE);
+            }
             userObj.password = await bcrypt.hash(userObj.password, 10);
         }
 

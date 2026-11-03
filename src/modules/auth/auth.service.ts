@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 import { AuthRepository } from "./auth.repository.js";
 import { hashCpf } from "../../shared/crypto.js";
+import { isPasswordPwned, PWNED_PASSWORD_MESSAGE } from "../../shared/pwnedPassword.js";
 import {isValidCPF} from "../user/user.schema.js"
 
 const authRepository = new AuthRepository();
@@ -71,6 +72,10 @@ export class AuthService {
     }
 
     async updatePassword(id: string, newPassword: string) {
+        if (await isPasswordPwned(newPassword)) {
+            throw new Error(PWNED_PASSWORD_MESSAGE);
+        }
+
         const hashPassword = await bcrypt.hash(newPassword, 10);
         await authRepository.updatePasswordFirstAccess(id, hashPassword);
     }

@@ -37,6 +37,7 @@ export class AuthRepository {
             data: {
                 password:newPassword,
                 firstAccess:false,
+                updatedById: id
             }
         });
         return userUptade;
