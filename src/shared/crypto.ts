@@ -8,3 +8,7 @@ export function hashCpf(cpf:string): string {
     const clean = cpf.replace(/\D/g, "");
     return crypto.createHmac("sha256", key).update(clean).digest("hex");
 }
+
+export function identifierForAudit(identifier: string): string {
+    return identifier.includes("@") ? identifier : hashCpf(identifier);
+}

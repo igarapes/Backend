@@ -63,9 +63,14 @@ export class UserService {
             if (idUpdater !== idTarget && (targetRole === "ADMIN" || targetRole === "TECNICO")) {
                 throw new Error("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
             }
+        }
 
-            if (userObj.role === "ADMIN") {
-                throw new Error("Acesso negado: Apenas administradores podem conceder o perfil de ADMIN.");
+        if (userObj.role && userObj.role !== targetUser.role.name) {
+            if (updaterRole !== "ADMIN") {
+                throw new Error("Acesso negado: Apenas administradores podem alterar o perfil de acesso.");
+            }
+            if (idUpdater === idTarget) {
+                throw new Error("Acesso negado: Administradores não podem alterar o próprio perfil de acesso.");
             }
         }
 
@@ -154,13 +159,32 @@ export class UserService {
         }
     }
 
-    async listUsers(requesterRole: string, requesterId: string, ip: string){
+    async getUserById(idTarget: string, requesterId: string, requesterRole: string){
+        const user = await userRepository.getUserDetails(idTarget);
+        if(!user){
+            throw new Error("Usuário não encontrado");
+        }
+
+        const isSelf = idTarget === requesterId;
+
+        if(requesterRole === "USUARIO" && !isSelf){
+            throw new Error("Acesso negado: Usuários só podem visualizar o próprio perfil.");
+        }
+
+        if(requesterRole === "TECNICO" && !isSelf && user.role.name !== "USUARIO"){
+            throw new Error("Acesso negado: Técnicos só podem visualizar o próprio perfil e Usuários comuns.");
+        }
+
+        return user;
+    }
+
+    async listUsers(requesterRole: string, requesterId: string, ip: string, page: number, limit: number){
         if(requesterRole === "USUARIO"){
             throw new Error("Acesso negado: usuário não pode listar usuários.")
         }
 
         try {
-            const listUsers = await userRepository.listUsers(requesterRole);
+            const listUsers = await userRepository.listUsers(requesterRole, page, limit);
             await auditService.register("LIST_USERS", "SUCCESS", requesterId, requesterId, ip);
             return listUsers;
         } catch (error) {

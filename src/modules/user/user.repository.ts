@@ -4,6 +4,24 @@ import crypto from "crypto";
 import { prisma } from "../../config/db.js";
 import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
 
+const publicUserSelect = {
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    cpf: true,
+    isActivate: true,
+    firstAccess: true,
+    dataConsent: true,
+    createdAt: true,
+    role: {
+        select: {
+            id: true,
+            name: true
+        }
+    }
+} satisfies Prisma.UserSelect;
+
 export class UserRepository {
     async createUser(userObj: CreateUserDTO, id: string, role: string, password: string, hashedCpf: string) {
         const roleData = await prisma.role.findFirst({
@@ -23,6 +41,7 @@ export class UserRepository {
                     password: password,
                     cpf: hashedCpf, 
                     firstAccess: true,
+                    dataConsent: userObj.dataConsent,
                     createdById: id,
                     roleId: roleData.id
                 }
@@ -59,7 +78,15 @@ export class UserRepository {
     }
 
     async updateUser(id: string, userObj: UpdateUserDTO, updateById: string){
-    
+        let roleId: string | undefined;
+        if (userObj.role) {
+            const roleData = await prisma.role.findFirst({ where: { name: userObj.role } });
+            if (!roleData) {
+                throw new Error("Perfil não encontrado no banco de dados.");
+            }
+            roleId = roleData.id;
+        }
+
         try {
             const updateUser = await prisma.user.update({
             where: { id: id },
@@ -68,6 +95,7 @@ export class UserRepository {
                     ...(userObj.phone && { phone: userObj.phone }),
                     ...(userObj.email && { email: userObj.email }),
                     ...(userObj.password && { password: userObj.password }),
+                    ...(roleId && { roleId }),
                     updatedById: updateById,
                 }
             });
@@ -113,7 +141,8 @@ export class UserRepository {
                 phone: `DEL${uniqueSuffix}`,
                 cpf: `DEL${uniqueSuffix}`,
                 password: "dados_anonimizados", 
-                isActivate: false
+                isActivate: false,
+                updatedById: id,
             }
         });
 
@@ -123,7 +152,21 @@ export class UserRepository {
         };
     }
 
-    async listUsers(requesterRole: string) {
+    async getUserDetails(id: string) {
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: publicUserSelect,
+        });
+
+        if (!user) return null;
+
+        return {
+            ...user,
+            cpf: "***.***.***-**"
+        };
+    }
+
+    async listUsers(requesterRole: string, page: number, limit: number) {
         const whereClause: Prisma.UserWhereInput = {};
 
         if (requesterRole === "TECNICO") {
@@ -134,32 +177,26 @@ export class UserRepository {
             };
         }
 
-        const users = await prisma.user.findMany({
-            where: whereClause,
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                cpf: true,
-                isActivate: true,
-                firstAccess: true,
-                createdAt: true,
-                role: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: "desc" 
-            }
-        });
+        const [users, total] = await prisma.$transaction([
+            prisma.user.findMany({
+                where: whereClause,
+                select: publicUserSelect,
+                orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            prisma.user.count({ where: whereClause }),
+        ]);
 
-        return users.map(user => ({
-            ...user,
-            cpf: "***.***.***-**"
-        }));
+        return {
+            data: users.map(user => ({
+                ...user,
+                cpf: "***.***.***-**"
+            })),
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 }

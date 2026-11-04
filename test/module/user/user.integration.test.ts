@@ -105,7 +105,8 @@ describe('Integração: POST /api/user', () => {
                 email: "sucesso_test@test.com",
                 phone: "61999999991",
                 cpf: "71935766074",
-                role: "USUARIO"
+                role: "USUARIO",
+                dataConsent: true
             });
 
         expect(response.status).toBe(201);
@@ -123,6 +124,47 @@ describe('Integração: POST /api/user', () => {
         expect(senhaEnviada).toHaveLength(12);
         expect(usuarioSalvo!.password).not.toBe(senhaEnviada);
         expect(await bcrypt.compare(senhaEnviada, usuarioSalvo!.password)).toBe(true);
+        expect(usuarioSalvo!.dataConsent).toBe(true);
+    });
+
+    it('Deve bloquear (400) a criação sem o consentimento de dados', async () => {
+        const semConsentimento = await request(server)
+            .post('/api/user')
+            .set('Cookie', [`token=${adminToken}`])
+            .send({ name: "Sem Consentimento", email: "sem_consentimento_test@test.com", phone: "61999999981", cpf: "45317828791", role: "USUARIO" });
+
+        const consentimentoFalso = await request(server)
+            .post('/api/user')
+            .set('Cookie', [`token=${adminToken}`])
+            .send({ name: "Sem Consentimento", email: "sem_consentimento_test@test.com", phone: "61999999981", cpf: "45317828791", role: "USUARIO", dataConsent: false });
+
+        expect(semConsentimento.status).toBe(400);
+        expect(consentimentoFalso.status).toBe(400);
+        expect(consentimentoFalso.body.details.dataConsent._errors).toContain("O consentimento de dados é obrigatório.");
+    });
+
+    it('Deve bloquear (400) e-mails fora dos domínios permitidos quando ALLOWED_EMAIL_DOMAINS está configurado', async () => {
+        const original = process.env.ALLOWED_EMAIL_DOMAINS;
+        process.env.ALLOWED_EMAIL_DOMAINS = "igarape.com.br, outrodominio.com";
+
+        try {
+            const bloqueado = await request(server)
+                .post('/api/user')
+                .set('Cookie', [`token=${adminToken}`])
+                .send({ name: "Dominio Bloqueado", email: "dominio_test@gmail.com", phone: "61999999982", cpf: "68356544068", role: "USUARIO", dataConsent: true });
+
+            const permitido = await request(server)
+                .post('/api/user')
+                .set('Cookie', [`token=${adminToken}`])
+                .send({ name: "Dominio Permitido", email: "dominio_test@IGARAPE.com.br", phone: "61999999983", cpf: "68356544068", role: "USUARIO", dataConsent: true });
+
+            expect(bloqueado.status).toBe(400);
+            expect(bloqueado.body.details.email._errors).toContain("Domínio de e-mail não permitido.");
+            expect(permitido.status).toBe(201);
+        } finally {
+            if (original === undefined) delete process.env.ALLOWED_EMAIL_DOMAINS;
+            else process.env.ALLOWED_EMAIL_DOMAINS = original;
+        }
     });
 
     it('Deve permitir que um ADMIN crie um usuário com perfil TECNICO', async () => {
@@ -134,7 +176,8 @@ describe('Integração: POST /api/user', () => {
                 email: "tecnico_test@test.com",
                 phone: "61999999992",
                 cpf: "22752809018",
-                role: "TECNICO"
+                role: "TECNICO",
+                dataConsent: true
             });
 
         expect(response.status).toBe(201);
@@ -151,7 +194,8 @@ describe('Integração: POST /api/user', () => {
                 email: "invalid_role@test.com",
                 phone: "61993419991",
                 cpf: "96125090000",
-                role: "GERENTE"
+                role: "GERENTE",
+                dataConsent: true
             });
 
         expect(response.status).toBe(400);
@@ -167,7 +211,8 @@ describe('Integração: POST /api/user', () => {
                 email: "invalido_test@test.com",
                 phone: "61999999992",
                 cpf: "11111111111",
-                role: "USUARIO"
+                role: "USUARIO",
+                dataConsent: true
             });
         
         expect(response.status).toBe(400);
@@ -180,7 +225,8 @@ describe('Integração: POST /api/user', () => {
             email: "duplicado_test@test.com",
             phone: "61999999993",
             cpf: "22576339034",
-            role: "USUARIO"
+            role: "USUARIO",
+            dataConsent: true
         };
 
         await request(server)
@@ -206,7 +252,8 @@ describe('Integração: POST /api/user', () => {
                 email: "admin_test@test.com",
                 phone: "61999999994",
                 cpf: "28859976057", 
-                role: "ADMIN"
+                role: "ADMIN",
+                dataConsent: true
             });
         
         expect(response.status).toBe(400);
@@ -222,7 +269,8 @@ describe('Integração: POST /api/user', () => {
                 email: "tecnico_ilegal@test.com",
                 phone: "61999999995",
                 cpf: "69207687046", 
-                role: "TECNICO"
+                role: "TECNICO",
+                dataConsent: true
             });
         
         expect(response.status).toBe(400);
@@ -241,7 +289,8 @@ describe('Integração: POST /api/user', () => {
                 email: "rollback_test@test.com",
                 phone: "61999999996",
                 cpf: "15380277047",
-                role: "USUARIO"
+                role: "USUARIO",
+                dataConsent: true
             });
 
         expect(response.status).toBe(400);
@@ -345,10 +394,40 @@ describe('Integração: PUT /api/user/:id', () => {
             .send({ role: 'ADMIN' });
 
         expect(response.status).toBe(403);
-        expect(response.body.message).toContain("Apenas administradores podem conceder o perfil de ADMIN");
+        expect(response.body.message).toContain("Apenas administradores podem alterar o perfil de acesso");
     });
 
-    it('Deve permitir que um ADMIN atualize qualquer usuário e altere roles', async () => {
+    it('Deve bloquear (403) se um USUARIO tentar se promover a ADMIN', async () => {
+        const response = await request(server)
+            .put(`/api/user/${usuarioId}`)
+            .set('Cookie', [`token=${usuarioToken}`])
+            .send({ role: 'ADMIN' });
+
+        expect(response.status).toBe(403);
+        const noBanco = await prisma.user.findUnique({ where: { id: usuarioId }, include: { role: true } });
+        expect(noBanco?.role.name).toBe('USUARIO');
+    });
+
+    it('Deve permitir que o USUARIO envie a própria role sem alterá-la (o formulário sempre envia o campo)', async () => {
+        const response = await request(server)
+            .put(`/api/user/${usuarioId}`)
+            .set('Cookie', [`token=${usuarioToken}`])
+            .send({ name: 'Usuario Edição', role: 'USUARIO' });
+
+        expect(response.status).toBe(200);
+    });
+
+    it('Deve bloquear (403) que o ADMIN altere o próprio perfil de acesso', async () => {
+        const response = await request(server)
+            .put(`/api/user/${adminId}`)
+            .set('Cookie', [`token=${adminToken}`])
+            .send({ role: 'USUARIO' });
+
+        expect(response.status).toBe(403);
+        expect(response.body.message).toContain("não podem alterar o próprio perfil");
+    });
+
+    it('Deve permitir que um ADMIN atualize qualquer usuário', async () => {
         const response = await request(server)
             .put(`/api/user/${tecnicoId}`)
             .set('Cookie', [`token=${adminToken}`])
@@ -356,7 +435,18 @@ describe('Integração: PUT /api/user/:id', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.name).toBe('Tecnico Atualizado Pelo Admin');
-        
+    });
+
+    it('Deve permitir que um ADMIN altere o perfil de acesso de outro usuário', async () => {
+        const response = await request(server)
+            .put(`/api/user/${outroUsuarioId}`)
+            .set('Cookie', [`token=${adminToken}`])
+            .send({ role: 'TECNICO' });
+
+        expect(response.status).toBe(200);
+        const noBanco = await prisma.user.findUnique({ where: { id: outroUsuarioId }, include: { role: true } });
+        expect(noBanco?.role.name).toBe('TECNICO');
+        expect(noBanco?.updatedById).toBe(adminId);
     });
 
     it('Deve retornar erro se o ID do alvo não for um UUID válido (Zod param)', async () => {
@@ -616,7 +706,10 @@ describe('Integração: DELETE /api/user/:id', () => {
         expect(response.body.name).toBe("Usuário Excluído");
         expect(response.body.email).toContain("excluido_");
         expect(response.body.isActivate).toBe(false);
-        expect(response.body.cpf).toBe("***.***.***-**"); 
+        expect(response.body.cpf).toBe("***.***.***-**");
+
+        const usuarioNoBanco = await prisma.user.findUnique({ where: { id: usuario1Id } });
+        expect(usuarioNoBanco?.updatedById).toBe(usuario1Id);
     });
 });
 
@@ -667,11 +760,49 @@ describe('Integração: GET /api/user', () => {
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(200);
-        expect(Array.isArray(response.body)).toBeTruthy();
-        expect(response.body.length).toBe(5); 
+        expect(Array.isArray(response.body.data)).toBeTruthy();
+        expect(response.body.data.length).toBe(5);
+        expect(response.body).toMatchObject({ total: 5, page: 1, limit: 10, totalPages: 1 });
         
-        expect(response.body[0]).not.toHaveProperty('password');
-        expect(response.body[0].cpf).toBe('***.***.***-**');
+        expect(response.body.data[0]).not.toHaveProperty('password');
+        expect(response.body.data[0].cpf).toBe('***.***.***-**');
+    });
+
+    it('Deve paginar a listagem sem repetir usuários entre as páginas', async () => {
+        const pagina1 = await request(server)
+            .get('/api/user?page=1&limit=2')
+            .set('Cookie', [`token=${adminToken}`]);
+        const pagina2 = await request(server)
+            .get('/api/user?page=2&limit=2')
+            .set('Cookie', [`token=${adminToken}`]);
+        const pagina3 = await request(server)
+            .get('/api/user?page=3&limit=2')
+            .set('Cookie', [`token=${adminToken}`]);
+
+        expect(pagina1.status).toBe(200);
+        expect(pagina1.body).toMatchObject({ total: 5, page: 1, limit: 2, totalPages: 3 });
+        expect(pagina1.body.data).toHaveLength(2);
+        expect(pagina2.body.data).toHaveLength(2);
+        expect(pagina3.body.data).toHaveLength(1);
+
+        const ids = [...pagina1.body.data, ...pagina2.body.data, ...pagina3.body.data].map((user: { id: string }) => user.id);
+        expect(new Set(ids).size).toBe(5);
+    });
+
+    it('Deve retornar 400 para parâmetros de paginação inválidos', async () => {
+        const limiteAlto = await request(server)
+            .get('/api/user?limit=500')
+            .set('Cookie', [`token=${adminToken}`]);
+        const paginaZero = await request(server)
+            .get('/api/user?page=0')
+            .set('Cookie', [`token=${adminToken}`]);
+        const naoNumero = await request(server)
+            .get('/api/user?page=abc')
+            .set('Cookie', [`token=${adminToken}`]);
+
+        expect(limiteAlto.status).toBe(400);
+        expect(paginaZero.status).toBe(400);
+        expect(naoNumero.status).toBe(400);
     });
 
     it('Deve restringir a listagem do TECNICO apenas a perfis do tipo USUARIO (Menor Privilégio)', async () => {
@@ -680,11 +811,12 @@ describe('Integração: GET /api/user', () => {
             .set('Cookie', [`token=${tecnicoToken}`]);
 
         expect(response.status).toBe(200);
-        expect(Array.isArray(response.body)).toBeTruthy();
+        expect(Array.isArray(response.body.data)).toBeTruthy();
         
-        expect(response.body.length).toBe(2); 
+        expect(response.body.data.length).toBe(2); 
+        expect(response.body.total).toBe(2);
 
-        response.body.forEach((user: any) => {
+        response.body.data.forEach((user: any) => {
             expect(user.role.name).toBe('USUARIO');
         });
     });
@@ -695,5 +827,81 @@ describe('Integração: GET /api/user', () => {
             .set('Cookie', [`token=${usuarioToken}`]);
 
         expect(response.status).toBe(403);
+    });
+});
+describe('Integração: GET /api/user/:id', () => {
+    const ids: Record<string, string> = {};
+    const tokens: Record<string, string> = {};
+
+    beforeAll(async () => {
+        await prisma.user.deleteMany();
+
+        const roles = {
+            ADMIN: await prisma.role.findFirst({ where: { name: 'ADMIN' } }),
+            TECNICO: await prisma.role.findFirst({ where: { name: 'TECNICO' } }),
+            USUARIO: await prisma.role.findFirst({ where: { name: 'USUARIO' } }),
+        };
+
+        const pessoas = [
+            { chave: 'admin', role: 'ADMIN', email: 'admin_getid@igarape.com.br', phone: '61999980001', cpf: '10000000001' },
+            { chave: 'tecnico1', role: 'TECNICO', email: 'tec1_getid@igarape.com.br', phone: '61999980002', cpf: '10000000002' },
+            { chave: 'tecnico2', role: 'TECNICO', email: 'tec2_getid@igarape.com.br', phone: '61999980003', cpf: '10000000003' },
+            { chave: 'usuario1', role: 'USUARIO', email: 'user1_getid@igarape.com.br', phone: '61999980004', cpf: '10000000004' },
+            { chave: 'usuario2', role: 'USUARIO', email: 'user2_getid@igarape.com.br', phone: '61999980005', cpf: '10000000005' },
+        ] as const;
+
+        for (const pessoa of pessoas) {
+            const user = await prisma.user.create({
+                data: { name: pessoa.chave, email: pessoa.email, phone: pessoa.phone, cpf: pessoa.cpf, password: 'hash', firstAccess: false, roleId: roles[pessoa.role]!.id }
+            });
+            ids[pessoa.chave] = user.id;
+            tokens[pessoa.chave] = jwt.sign({ id: user.id, role: pessoa.role }, process.env.AUTH_TOKEN as string, { expiresIn: '1h' });
+        }
+    });
+
+    afterAll(async () => {
+        await prisma.user.deleteMany();
+        await desconectarBancoDeDados();
+    });
+
+    async function buscar(quem: string, alvo: string) {
+        return request(server)
+            .get(`/api/user/${alvo}`)
+            .set('Cookie', [`token=${tokens[quem]}`]);
+    }
+
+    it('Deve retornar os dados sem senha e com CPF mascarado', async () => {
+        const response = await buscar('admin', ids.usuario1!);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({ id: ids.usuario1, email: 'user1_getid@igarape.com.br', phone: '61999980004', cpf: '***.***.***-**' });
+        expect(response.body.role.name).toBe('USUARIO');
+        expect(response.body).not.toHaveProperty('password');
+    });
+
+    it('ADMIN pode ver qualquer usuário', async () => {
+        expect((await buscar('admin', ids.tecnico1!)).status).toBe(200);
+        expect((await buscar('admin', ids.admin!)).status).toBe(200);
+    });
+
+    it('TECNICO pode ver a si mesmo e Usuários comuns', async () => {
+        expect((await buscar('tecnico1', ids.tecnico1!)).status).toBe(200);
+        expect((await buscar('tecnico1', ids.usuario1!)).status).toBe(200);
+    });
+
+    it('TECNICO não pode ver outros Técnicos nem Administradores (403)', async () => {
+        expect((await buscar('tecnico1', ids.tecnico2!)).status).toBe(403);
+        expect((await buscar('tecnico1', ids.admin!)).status).toBe(403);
+    });
+
+    it('USUARIO só pode ver a si mesmo (403 para os outros)', async () => {
+        expect((await buscar('usuario1', ids.usuario1!)).status).toBe(200);
+        expect((await buscar('usuario1', ids.usuario2!)).status).toBe(403);
+        expect((await buscar('usuario1', ids.admin!)).status).toBe(403);
+    });
+
+    it('Deve retornar 404 para um usuário inexistente e 400 para um ID inválido', async () => {
+        expect((await buscar('admin', '123e4567-e89b-12d3-a456-426614174000')).status).toBe(404);
+        expect((await buscar('admin', 'id-invalido')).status).toBe(400);
     });
 });

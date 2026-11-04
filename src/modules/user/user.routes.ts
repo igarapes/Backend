@@ -4,7 +4,7 @@ import { UserController } from "./user.controller.js";
 import { validateData } from "../../shared/middleware/validadeData.js";
 import { authenticated } from "../../shared/middleware/authenticated.js";
 import { checkRole } from "../../shared/middleware/checkRole.js";
-import { schemaCreate, schemaIdParam, schemaUpdate } from "./user.schema.js";
+import { schemaCreate, schemaIdParam, schemaListQuery, schemaUpdate } from "./user.schema.js";
 import { requirePasswordChanged } from "../../shared/middleware/requirePasswordChanged.js";
 
 const userRoutes = Router();
@@ -47,6 +47,10 @@ const userController = new UserController();
  *                 type: string
  *                 enum: [ADMIN, TECNICO, USUARIO]
  *                 example: "USUARIO"
+ *               dataConsent:
+ *                 type: boolean
+ *                 description: Consentimento do usuário para o uso do e-mail (opt-in). Precisa ser true.
+ *                 example: true
  *     responses:
  *       201:
  *         description: Usuário criado com sucesso e e-mail de acesso enviado.
@@ -199,9 +203,46 @@ userRoutes.delete(
  *     summary: Lista os usuários cadastrados no sistema
  *     description: Retorna uma lista de usuários preservando a privacidade (senhas omitidas e CPFs mascarados). O retorno é filtrado pelo Princípio do Menor Privilégio - Administradores podem visualizar todos os usuários do sistema; Técnicos podem visualizar apenas perfis do tipo "USUARIO". Perfis comuns ("USUARIO") não têm acesso a esta rota.
  *     tags: [Usuários]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
  *     responses:
  *       200:
- *         description: Lista de usuários retornada com sucesso.
+ *         description: Página da lista de usuários.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 total:
+ *                   type: integer
+ *                   example: 42
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 limit:
+ *                   type: integer
+ *                   example: 10
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 5
+ *       400:
+ *         description: Parâmetros de paginação inválidos.
  *       401:
  *         description: Acesso negado. Token de autenticação ausente ou inválido.
  *       403:
@@ -214,7 +255,43 @@ userRoutes.get(
     authenticated,
     requirePasswordChanged,
     checkRole(["ADMIN", "TECNICO"]),
+    validateData(schemaListQuery, "query"),
     userController.listUsers.bind(userController)
+);
+
+/**
+ * @swagger
+ * /user/{id}:
+ *   get:
+ *     summary: Busca os dados de um usuário
+ *     description: Rota protegida. Usada pela tela de edição. Usuários só veem o próprio perfil; Técnicos veem o próprio perfil e Usuários comuns; Administradores veem todos. A senha nunca é retornada e o CPF vem mascarado.
+ *     tags: [Usuários]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Dados do usuário.
+ *       400:
+ *         description: ID em formato inválido.
+ *       401:
+ *         description: Token ausente, inválido ou expirado.
+ *       403:
+ *         description: Sem permissão para ver este usuário.
+ *       404:
+ *         description: Usuário não encontrado.
+ */
+userRoutes.get(
+    "/:id",
+    authenticated,
+    requirePasswordChanged,
+    checkRole(["ADMIN", "TECNICO", "USUARIO"]),
+    validateData(schemaIdParam, "params"),
+    userController.getUserById.bind(userController)
 );
 
 export { userRoutes };

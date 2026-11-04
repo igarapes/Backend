@@ -546,6 +546,40 @@ describe("Teste de integração: login por CPF e bloqueio de usuários inativos"
         expect(response.status).toBe(200);
     });
 
+    it("Não deve gravar o CPF em texto puro na auditoria do login (sucesso e falha)", async () => {
+        await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: "529.982.247-25", password: senha });
+        await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: "529.982.247-25", password: "SenhaErrada@1" });
+
+        const registros = await prisma.auditLog.findMany({
+            where: { action: "LOGIN_ATTEMPT" },
+            orderBy: { createdAt: "desc" },
+            take: 2,
+        });
+
+        expect(registros.map((registro) => registro.status).sort()).toEqual(["FAILED", "SUCCESS"]);
+        registros.forEach((registro) => {
+            expect(registro.targetEmail).toBe(hashCpf("52998224725"));
+            expect(registro.targetEmail).not.toContain("52998224725");
+        });
+    });
+
+    it("Deve manter o e-mail na auditoria quando o login é feito por e-mail", async () => {
+        await request(server)
+            .post("/api/auth/login")
+            .send({ identifier: emails[0], password: senha });
+
+        const registro = await prisma.auditLog.findFirst({
+            where: { action: "LOGIN_ATTEMPT" },
+            orderBy: { createdAt: "desc" },
+        });
+
+        expect(registro?.targetEmail).toBe(emails[0]);
+    });
+
     it("Deve retornar 401 com mensagem genérica ao logar com usuário inativo", async () => {
         const response = await request(server)
             .post("/api/auth/login")

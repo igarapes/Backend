@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 
 import { AuthService } from "./auth.service.js";
 import { AuditService } from "../../shared/audit.js";
+import { identifierForAudit } from "../../shared/crypto.js";
 import type { AuthRequest } from "../../shared/middleware/authenticated.js";
 
 const auditService = new AuditService();
@@ -19,7 +20,7 @@ export class AuthController{
         try {
             const { token, user } = await authService.makeLogin(identifier, password);
             try {
-                await auditService.register( "LOGIN_ATTEMPT", "SUCCESS", identifier, undefined, req.ip);
+                await auditService.register( "LOGIN_ATTEMPT", "SUCCESS", identifierForAudit(identifier), undefined, req.ip);
             } catch (auditError) {
                 console.error("Error ao regostrar auditoria de login:", auditError);
             }
@@ -29,7 +30,7 @@ export class AuthController{
             if(error instanceof Error){
                 if (error.message === "Credenciais inválidas" ) {
                     try {
-                        await auditService.register( "LOGIN_ATTEMPT", "FAILED", identifier, undefined, req.ip );
+                        await auditService.register( "LOGIN_ATTEMPT", "FAILED", identifierForAudit(identifier), undefined, req.ip );
                     } catch (auditError) {
                         console.error("Erro ao registrar auditoria de login:",auditError);
                     }

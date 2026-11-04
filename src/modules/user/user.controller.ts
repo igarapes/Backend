@@ -2,6 +2,7 @@ import type { Response } from "express";
 
 import { UserService } from "./user.service.js";
 import type { AuthRequest } from "../../shared/middleware/authenticated.js";
+import type { ListUsersQuery } from "./user.schema.js";
 
 const userService = new UserService();
 
@@ -83,13 +84,37 @@ export class UserController {
         }
     }
 
-    async listUsers(req:AuthRequest, res: Response){
+    async getUserById(req: AuthRequest, res: Response){
+        const idTarget = req.params.id as string;
         const requesterId = req.userId as string;
-        const requesterRole = req.roleId as string; 
-        const ip = req.ip as string;
+        const requesterRole = req.roleId as string;
 
         try {
-            const response = await userService.listUsers(requesterRole, requesterId, ip);
+            const response = await userService.getUserById(idTarget, requesterId, requesterRole);
+            return res.status(200).json(response);
+        } catch (error) {
+            if (error instanceof Error) {
+                if (error.message.includes("Acesso negado")) {
+                    return res.status(403).json({ message: error.message });
+                }
+                if (error.message === "Usuário não encontrado") {
+                    return res.status(404).json({ message: error.message });
+                }
+                return res.status(400).json({ message: error.message });
+            }
+            return res.status(500).json({ message: "Ocorreu um erro interno inesperado." });
+        }
+    }
+
+    async listUsers(req:AuthRequest, res: Response){
+        const requesterId = req.userId as string;
+        const requesterRole = req.roleId as string;
+        const ip = req.ip as string;
+        // Já validado e convertido para número pelo validateData(schemaListQuery, "query")
+        const { page, limit } = req.query as unknown as ListUsersQuery;
+
+        try {
+            const response = await userService.listUsers(requesterRole, requesterId, ip, page, limit);
             return res.status(200).json(response);
         } catch (error) {
             if (error instanceof Error) {
