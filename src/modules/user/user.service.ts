@@ -7,6 +7,7 @@ import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
 import { hashCpf } from "../../shared/crypto.js";
 import { generateCompliantPassword } from "../../shared/generatePassword.js";
 import { isPasswordPwned, PWNED_PASSWORD_MESSAGE } from "../../shared/pwnedPassword.js";
+import { AppError, ForbiddenError, NotFoundError } from "../../shared/errors.js";
 
 const userRepository = new UserRepository();
 const auditService = new AuditService();
@@ -15,7 +16,7 @@ export class UserService {
     async createUser(userObj: CreateUserDTO, idCreator: string, creatorRole: string, ip: string) {
         
         if (creatorRole === "TECNICO" && userObj.role !== "USUARIO") {
-            throw new Error("Acesso negado: Técnicos podem cadastrar apenas Usuários comuns.");
+            throw new ForbiddenError("Acesso negado: Técnicos podem cadastrar apenas Usuários comuns.");
         }
 
         const randomPassword = generateCompliantPassword();
@@ -27,22 +28,19 @@ export class UserService {
             createdUser = await userRepository.createUser(userObj, idCreator, userObj.role, hashedPassword, hashedCpf);
         } catch (dbError: unknown) {
             await auditService.register("USER_CREATION", "FAILED_DB_CONSTRAINT", userObj.email, idCreator, ip);
-            
-            if (dbError instanceof Error) {
-                throw new Error(dbError.message, { cause: dbError }); 
-            }
-            
-            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: dbError });
+            throw dbError;
         }
 
         try {
             await sendTemporaryPasswordEmail(userObj.email, userObj.name, randomPassword);
             await auditService.register("USER_CREATION", "SUCCESS", userObj.email, idCreator, ip);
             
-        } catch (error: unknown) {
+        } catch {
+            // O detalhe do erro de SMTP já é registrado no log pelo sendTemporaryPasswordEmail
             await userRepository.deleteUser(createdUser.id);
             await auditService.register("USER_CREATION", "FAILED_EMAIL_ROLLBACK", userObj.email, idCreator, ip);
-            throw new Error("Não foi possível enviar o email de acesso. O cadastro foi cancelado, tente novamente.", { cause: error });
+            // 503: o serviço de e-mail está indisponível, não é um erro nos dados enviados
+            throw new AppError("Não foi possível enviar o email de acesso. O cadastro foi cancelado, tente novamente.", 503);
         }
 
         return createdUser;
@@ -51,32 +49,32 @@ export class UserService {
     async updateUser(idTarget: string, userObj: UpdateUserDTO, idUpdater: string, updaterRole: string, ip: string){
         const targetUser = await userRepository.getUserById(idTarget);
         if(!targetUser){
-            throw new Error("Usuário não encontrado");
+            throw new NotFoundError();
         }
         
         if(updaterRole === "USUARIO" && idUpdater !== targetUser.id){
-            throw new Error("Acesso negado: Usuários não podem atualizar outros perfis.");
+            throw new ForbiddenError("Acesso negado: Usuários não podem atualizar outros perfis.");
         }
 
         if(updaterRole === "TECNICO"){
             const targetRole = targetUser.role.name;
             if (idUpdater !== idTarget && (targetRole === "ADMIN" || targetRole === "TECNICO")) {
-                throw new Error("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
+                throw new ForbiddenError("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
             }
         }
 
         if (userObj.role && userObj.role !== targetUser.role.name) {
             if (updaterRole !== "ADMIN") {
-                throw new Error("Acesso negado: Apenas administradores podem alterar o perfil de acesso.");
+                throw new ForbiddenError("Acesso negado: Apenas administradores podem alterar o perfil de acesso.");
             }
             if (idUpdater === idTarget) {
-                throw new Error("Acesso negado: Administradores não podem alterar o próprio perfil de acesso.");
+                throw new ForbiddenError("Acesso negado: Administradores não podem alterar o próprio perfil de acesso.");
             }
         }
 
         if(userObj.password){
             if (await isPasswordPwned(userObj.password)) {
-                throw new Error(PWNED_PASSWORD_MESSAGE);
+                throw new AppError(PWNED_PASSWORD_MESSAGE);
             }
             userObj.password = await bcrypt.hash(userObj.password, 10);
         }
@@ -88,12 +86,7 @@ export class UserService {
             return updateUser;
         } catch (error: unknown) {
             await auditService.register("USER_UPDATE", "FAILED_DB_CONSTRAINT", userObj.email, idUpdater, ip);
-            
-            if (error instanceof Error) {
-                throw new Error(error.message, { cause: error }); 
-            }
-            
-            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
+            throw error;
         }
 
     }
@@ -101,19 +94,19 @@ export class UserService {
     async inactivateUser(idTarget: string, idUpdater: string, roleUpdater:string, ip: string){
         const targetUser = await userRepository.getUserById(idTarget);
         if(!targetUser){
-            throw new Error("Usuário não encontrado");
+            throw new NotFoundError();
         }
 
         if(roleUpdater === "USUARIO"){
-            throw new Error("Acesso negado: Usuários não podem inativar perfis.");
+            throw new ForbiddenError("Acesso negado: Usuários não podem inativar perfis.");
         }
 
         if(idTarget === idUpdater){
-            throw new Error("Acesso negado: Não pode inativar o próprio perfil.");
+            throw new ForbiddenError("Acesso negado: Não pode inativar o próprio perfil.");
         }
 
         if(roleUpdater === "TECNICO" && (targetUser.role.name === "ADMIN" || targetUser.role.name === "TECNICO")){
-            throw new Error("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
+            throw new ForbiddenError("Acesso negado: Técnicos não podem alterar dados de Administradores ou de outros Técnicos.");
         }
 
         try {
@@ -122,26 +115,21 @@ export class UserService {
             return inactivateUser;
         } catch (error) {
             await auditService.register("USER_INACTIVATE", "FAILED_DB_CONSTRAINT", idTarget, idUpdater, ip);
-            
-            if (error instanceof Error) {
-                throw new Error(error.message, { cause: error }); 
-            }
-            
-            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
+            throw error;
         }
     }
 
     async anonymizeUser(idTarget: string, idDeleter: string, ip: string){
         if(idTarget !== idDeleter){
-            throw new Error("Acesso negado: apenas o dono da conta pode deletar ela.");
+            throw new ForbiddenError("Acesso negado: apenas o dono da conta pode deletar ela.");
         }
 
         const userTarget = await userRepository.getUserById(idTarget);
         if(!userTarget){
-            throw new Error("Usuário não encontrado");
+            throw new NotFoundError();
         }
         if(userTarget.role.name === "ADMIN"){
-            throw new Error("O admin não pode deletar a sua conta");
+            throw new ForbiddenError("Acesso negado: O admin não pode deletar a sua conta.");
         }
 
         try {
@@ -150,29 +138,24 @@ export class UserService {
             return deleteUser
         } catch (error) {
             await auditService.register("USER_DELETE", "FAILED_DB_CONSTRAINT", userTarget.email, idTarget, ip);
-            
-            if (error instanceof Error) {
-                throw new Error(error.message, { cause: error }); 
-            }
-            
-            throw new Error("Erro desconhecido ao tentar salvar no banco de dados.", { cause: error });
+            throw error;
         }
     }
 
     async getUserById(idTarget: string, requesterId: string, requesterRole: string){
         const user = await userRepository.getUserDetails(idTarget);
         if(!user){
-            throw new Error("Usuário não encontrado");
+            throw new NotFoundError();
         }
 
         const isSelf = idTarget === requesterId;
 
         if(requesterRole === "USUARIO" && !isSelf){
-            throw new Error("Acesso negado: Usuários só podem visualizar o próprio perfil.");
+            throw new ForbiddenError("Acesso negado: Usuários só podem visualizar o próprio perfil.");
         }
 
         if(requesterRole === "TECNICO" && !isSelf && user.role.name !== "USUARIO"){
-            throw new Error("Acesso negado: Técnicos só podem visualizar o próprio perfil e Usuários comuns.");
+            throw new ForbiddenError("Acesso negado: Técnicos só podem visualizar o próprio perfil e Usuários comuns.");
         }
 
         return user;
@@ -180,7 +163,7 @@ export class UserService {
 
     async listUsers(requesterRole: string, requesterId: string, ip: string, page: number, limit: number){
         if(requesterRole === "USUARIO"){
-            throw new Error("Acesso negado: usuário não pode listar usuários.")
+            throw new ForbiddenError("Acesso negado: usuário não pode listar usuários.")
         }
 
         try {
@@ -189,12 +172,7 @@ export class UserService {
             return listUsers;
         } catch (error) {
             await auditService.register("LIST_USERS", "FAILED_DB_CONSTRAINT", requesterId, requesterId, ip);
-            
-            if (error instanceof Error) {
-                throw new Error(error.message, { cause: error }); 
-            }
-            
-            throw new Error("Erro desconhecido ao tentar buscar os usuários no banco de dados.", { cause: error });
+            throw error;
         }
     }
 }

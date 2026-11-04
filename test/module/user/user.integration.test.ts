@@ -239,7 +239,7 @@ describe('Integração: POST /api/user', () => {
             .set('Cookie', [`token=${adminToken}`])
             .send(userData);
         
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(409);
         expect(response.body.message).toContain("já estão em uso");
     });
 
@@ -256,7 +256,7 @@ describe('Integração: POST /api/user', () => {
                 dataConsent: true
             });
         
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(403);
         expect(response.body.message).toContain("Técnicos podem cadastrar apenas Usuários comuns");
     });
 
@@ -273,7 +273,7 @@ describe('Integração: POST /api/user', () => {
                 dataConsent: true
             });
         
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(403);
         expect(response.body.message).toContain("Técnicos podem cadastrar apenas Usuários comuns");
     });
 
@@ -293,7 +293,7 @@ describe('Integração: POST /api/user', () => {
                 dataConsent: true
             });
 
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(503);
         expect(response.body.message).toContain("Não foi possível enviar o email");
         
         const ghostUser = await prisma.user.findFirst({ where: { email: "rollback_test@test.com" } });
@@ -465,7 +465,7 @@ describe('Integração: PUT /api/user/:id', () => {
             .set('Cookie', [`token=${adminToken}`])
             .send({ name: 'Fantasma' });
 
-        expect(response.status).toBe(400); 
+        expect(response.status).toBe(404); 
         expect(response.body.message).toContain("Usuário não encontrado");
     });
 
@@ -475,7 +475,7 @@ describe('Integração: PUT /api/user/:id', () => {
             .set('Cookie', [`token=${usuarioToken}`])
             .send({ email: 'admin_put@igarape.com.br' }); 
 
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(409);
         expect(response.body.message).toContain("já estão em uso");
     });
 });
@@ -613,7 +613,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
             .patch(`/api/user/${fakeUuid}/inactivate`)
             .set('Cookie', [`token=${adminToken}`]);
 
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(404);
         expect(response.body.message).toContain("Usuário não encontrado");
     });
 });
@@ -666,12 +666,12 @@ describe('Integração: DELETE /api/user/:id', () => {
         expect(response.body.message).toContain("apenas o dono da conta pode deletar ela");
     });
 
-    it('Deve bloquear (400) a tentativa do ADMIN de excluir a própria conta', async () => {
+    it('Deve bloquear (403) a tentativa do ADMIN de excluir a própria conta', async () => {
         const response = await request(server)
             .delete(`/api/user/${adminId}`)
             .set('Cookie', [`token=${adminToken}`]);
 
-        expect(response.status).toBe(400); 
+        expect(response.status).toBe(403); 
         expect(response.body.message).toContain("O admin não pode deletar a sua conta");
     });
 

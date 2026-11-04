@@ -9,6 +9,7 @@ import morgan from "morgan";
 import { swaggerSpec } from "./config/swagger.js";
 import { routes } from "./config/routes.js";
 import { requireHttps } from "./shared/middleware/requireHttps.js";
+import { errorHandler } from "./shared/middleware/errorHandler.js";
 
 const server = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -41,6 +42,9 @@ server.use(morgan("dev"));
 server.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 server.use("/api", routes);
+
+server.use(errorHandler);
+
 const port = process.env.PORT;
 
 if (process.env.NODE_ENV !== "test") {

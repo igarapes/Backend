@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { AuthRepository } from "./auth.repository.js";
 import { hashCpf } from "../../shared/crypto.js";
 import { isPasswordPwned, PWNED_PASSWORD_MESSAGE } from "../../shared/pwnedPassword.js";
+import { AppError, NotFoundError, UnauthorizedError } from "../../shared/errors.js";
 import {isValidCPF} from "../user/user.schema.js"
 
 const authRepository = new AuthRepository();
@@ -17,16 +18,16 @@ export class AuthService {
         const user = await authRepository.findUserByIdentifier(identifier);
         
         if (!user) {
-            throw new Error("Credenciais inválidas");
+            throw new UnauthorizedError();
         }
 
         const comparePassword = await bcrypt.compare(password, user.password);
 
         if (!comparePassword) {
-            throw new Error("Credenciais inválidas");
+            throw new UnauthorizedError();
         }
 
-        if(!user.isActivate) throw new Error("Credenciais inválidas")
+        if(!user.isActivate) throw new UnauthorizedError();
         
         const secret = process.env.AUTH_TOKEN;
 
@@ -59,7 +60,7 @@ export class AuthService {
         const user = await authRepository.findUserById(id);
 
         if (!user) {
-            throw new Error("Usuário não encontrado");
+            throw new NotFoundError();
         }
 
         return {
@@ -73,7 +74,7 @@ export class AuthService {
 
     async updatePassword(id: string, newPassword: string) {
         if (await isPasswordPwned(newPassword)) {
-            throw new Error(PWNED_PASSWORD_MESSAGE);
+            throw new AppError(PWNED_PASSWORD_MESSAGE);
         }
 
         const hashPassword = await bcrypt.hash(newPassword, 10);

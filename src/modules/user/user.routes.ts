@@ -55,11 +55,15 @@ const userController = new UserController();
  *       201:
  *         description: Usuário criado com sucesso e e-mail de acesso enviado.
  *       400:
- *         description: Erro de validação nos dados enviados (Zod) ou regra de negócio (Email/CPF duplicado, violação de hierarquia).
+ *         description: Erro de validação nos dados enviados (Zod), como consentimento ausente ou domínio de e-mail não permitido.
  *       401:
  *         description: Acesso negado. Token não fornecido ou inválido.
  *       403:
- *         description: Acesso negado. Perfil sem permissão para criar usuários.
+ *         description: Acesso negado. Perfil sem permissão para criar usuários ou Técnico tentando criar um perfil acima de Usuário.
+ *       409:
+ *         description: E-mail, CPF ou telefone já em uso.
+ *       503:
+ *         description: Falha no envio do e-mail com a senha provisória. O cadastro é desfeito.
  */
 userRoutes.post(
     "/", 
@@ -109,13 +113,15 @@ userRoutes.post(
  *       200:
  *         description: Usuário atualizado com sucesso.
  *       400:
- *         description: Erro de validação nos dados enviados (Zod) ou e-mail já em uso.
+ *         description: Erro de validação nos dados enviados (Zod) ou senha encontrada em vazamentos de dados.
  *       401:
  *         description: Acesso negado. Token não fornecido ou inválido.
  *       403:
  *         description: Acesso negado. Violação de hierarquia (Ex Tentar editar um Admin sendo Técnico).
  *       404:
  *         description: Usuário alvo não encontrado no banco de dados.
+ *       409:
+ *         description: E-mail ou telefone já em uso por outro usuário.
  */
 userRoutes.put(
     "/:id",
@@ -182,7 +188,7 @@ userRoutes.patch(
  *       200:
  *         description: Conta excluída (anonimizada) com sucesso.
  *       400:
- *         description: Erro de validação ou usuário não encontrado.
+ *         description: ID em formato inválido.
  *       401:
  *         description: Acesso negado. Token ausente ou inválido.
  *       403:

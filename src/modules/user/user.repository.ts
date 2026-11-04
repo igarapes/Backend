@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 import { prisma } from "../../config/db.js";
 import type { CreateUserDTO, UpdateUserDTO } from "./user.schema.js";
+import { ConflictError } from "../../shared/errors.js";
 
 const publicUserSelect = {
     id: true,
@@ -55,7 +56,7 @@ export class UserRepository {
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError) {
                 if (error.code === 'P2002') {
-                    throw new Error("Os dados informados (E-mail ou CPF) já estão em uso.", {cause: error});
+                    throw new ConflictError();
                 }
             }
             throw error; 
@@ -107,7 +108,7 @@ export class UserRepository {
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError) {
                 if (error.code === 'P2002') {
-                    throw new Error("Os dados informados (E-mail ou CPF) já estão em uso.", {cause: error});
+                    throw new ConflictError();
                 }
             }
             throw error; 

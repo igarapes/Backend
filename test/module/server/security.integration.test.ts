@@ -27,6 +27,17 @@ describe("Integração: cabeçalhos de segurança e CORS", () => {
         expect(response.headers["access-control-allow-credentials"]).toBe("true");
     });
 
+    it("Deve responder 400 em JSON (e não uma página HTML) quando o corpo tem JSON malformado", async () => {
+        const response = await request(server)
+            .post("/api/auth/login")
+            .set("Content-Type", "application/json")
+            .send('{"identifier": "admin@igarape.com.br", "password": ');
+
+        expect(response.status).toBe(400);
+        expect(response.headers["content-type"]).toMatch(/application\/json/);
+        expect(response.body.message).toBe("JSON inválido no corpo da requisição.");
+    });
+
     it("Deve bloquear o CORS de uma origem desconhecida sem gerar erro 500", async () => {
         const response = await request(server)
             .get("/api/auth/me")

@@ -89,7 +89,8 @@ describe("Teste de integração: /api/auth/login", () => {
     });
 
 
-    it("Deve retornar 400 se ocorrer um erro instanciado (Error) genérico no login", async () => {
+    it("Não deve expor a mensagem de um erro inesperado no login (500 genérico)", async () => {
+        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
         const spy = jest.spyOn(AuthService.prototype, 'makeLogin').mockRejectedValueOnce(new Error("Erro simulado no banco"));
         
         const response = await request(server)
@@ -99,10 +100,13 @@ describe("Teste de integração: /api/auth/login", () => {
                 password: "Admin123!"
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Erro simulado no banco");
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe("Ocorreu um erro interno inesperado.");
+        expect(JSON.stringify(response.body)).not.toContain("Erro simulado no banco");
+        expect(consoleSpy).toHaveBeenCalled();
         
         spy.mockRestore(); 
+        consoleSpy.mockRestore();
     });
 
     it("Deve retornar 500 se ocorrer um erro não instanciado no login", async () => {
@@ -417,8 +421,9 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         expect(response.body.message).toBe("Acesso negado: Token inválido ou expirado.");
     });
 
-    it("Deve retornar 400 se o AuthService.updatePassword lançar um erro comum", async () => {
+    it("Não deve expor a mensagem de um erro inesperado na troca de senha (500 genérico)", async () => {
         const cookies = await realizarLogin();
+        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
         const spy = jest.spyOn(AuthService.prototype, 'updatePassword').mockRejectedValueOnce(new Error("Erro simulado ao atualizar"));
 
         const response = await request(server)
@@ -429,10 +434,12 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
                 confirmPassword: "NovaSenhaSegura@2!",
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Erro simulado ao atualizar");
+        expect(response.status).toBe(500);
+        expect(response.body.message).toBe("Ocorreu um erro interno inesperado.");
+        expect(JSON.stringify(response.body)).not.toContain("Erro simulado ao atualizar");
         
         spy.mockRestore();
+        consoleSpy.mockRestore();
     });
 
     it("Deve retornar 500 se o AuthService.updatePassword lançar um erro inesperado", async () => {
