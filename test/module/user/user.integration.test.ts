@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 
 import { server } from '../../../src/server'; 
 import { prisma, desconectarBancoDeDados } from '../../../src/config/db';
+import { resetDatabase } from '../../helpers/factory';
 
 jest.mock('nodemailer', () => {
     const mSendMail = jest.fn().mockResolvedValue({ messageId: 'mock-id-123' });
@@ -29,6 +30,8 @@ describe('Integração: POST /api/user', () => {
     let realAdminId: string;
 
     beforeAll(async () => {
+        await resetDatabase();
+
         let adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
         if (!adminRole) adminRole = await prisma.role.create({ data: { name: 'ADMIN' } });
 
@@ -310,9 +313,10 @@ describe('Integração: PUT /api/user/:id', () => {
     let tecnicoId: string;
     let usuarioId: string;
     let outroUsuarioId: string;
+    let outroTecnicoId: string;
 
     beforeAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
 
         const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
         const tecnicoRole = await prisma.role.findFirst({ where: { name: 'TECNICO' } });
@@ -340,10 +344,15 @@ describe('Integração: PUT /api/user/:id', () => {
             data: { name: 'Outro Usuario Edição', email: 'outro_put@igarape.com.br', phone: '61988887774', cpf: '66127116041', password: 'hash', firstAccess: false, roleId: usuarioRole!.id }
         });
         outroUsuarioId = outroUsuario.id;
+
+        const outroTecnico = await prisma.user.create({
+            data: { name: 'Outro Tecnico Edição', email: 'outro_tecnico_put@igarape.com.br', phone: '61988887775', cpf: '73428957049', password: 'hash', firstAccess: false, roleId: tecnicoRole!.id }
+        });
+        outroTecnicoId = outroTecnico.id;
     });
 
     afterAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
         await desconectarBancoDeDados();
     });
 
@@ -385,6 +394,19 @@ describe('Integração: PUT /api/user/:id', () => {
 
         expect(response.status).toBe(403);
         expect(response.body.message).toContain("Técnicos não podem alterar dados de Administradores");
+    });
+
+    it('Deve bloquear (403) se um TECNICO tentar atualizar outro TECNICO, sem alterar nada no banco', async () => {
+        const response = await request(server)
+            .put(`/api/user/${outroTecnicoId}`)
+            .set('Cookie', [`token=${tecnicoToken}`])
+            .send({ name: 'Tecnico Hackeado' });
+
+        expect(response.status).toBe(403);
+        expect(response.body.message).toContain("Técnicos não podem alterar dados de Administradores ou de outros Técnicos");
+
+        const noBanco = await prisma.user.findUnique({ where: { id: outroTecnicoId } });
+        expect(noBanco?.name).toBe('Outro Tecnico Edição');
     });
 
     it('Deve bloquear (403) se um TECNICO tentar promover alguém a ADMIN', async () => {
@@ -492,7 +514,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
     let usuario2Id: string;
 
     beforeAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
 
         const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
         const tecnicoRole = await prisma.role.findFirst({ where: { name: 'TECNICO' } });
@@ -533,7 +555,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
     });
 
     afterAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
         await desconectarBancoDeDados();
     });
 
@@ -544,6 +566,14 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.isActivate).toBe(false);
+
+        // Soft delete: o registro continua no banco, só que inativo, e com o autor da inativação
+        const noBanco = await prisma.user.findUnique({ where: { id: usuario2Id } });
+        expect(noBanco).not.toBeNull();
+        expect(noBanco?.isActivate).toBe(false);
+        expect(noBanco?.name).toBe('Usuario Alvo');
+        expect(noBanco?.email).toBe('usuario2_patch@igarape.com.br');
+        expect(noBanco?.updatedById).toBe(adminId);
     });
 
     it('Deve permitir que um ADMIN inative um TECNICO', async () => {
@@ -628,7 +658,7 @@ describe('Integração: DELETE /api/user/:id', () => {
     let usuario2Id: string;
 
     beforeAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
 
         const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
         const usuarioRole = await prisma.role.findFirst({ where: { name: 'USUARIO' } });
@@ -653,7 +683,7 @@ describe('Integração: DELETE /api/user/:id', () => {
     });
 
     afterAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
         await desconectarBancoDeDados();
     });
 
@@ -719,7 +749,7 @@ describe('Integração: GET /api/user', () => {
     let usuarioToken: string;
 
     beforeAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
 
         const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
         const tecnicoRole = await prisma.role.findFirst({ where: { name: 'TECNICO' } });
@@ -750,7 +780,7 @@ describe('Integração: GET /api/user', () => {
     });
 
     afterAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
         await desconectarBancoDeDados();
     });
 
@@ -834,7 +864,7 @@ describe('Integração: GET /api/user/:id', () => {
     const tokens: Record<string, string> = {};
 
     beforeAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
 
         const roles = {
             ADMIN: await prisma.role.findFirst({ where: { name: 'ADMIN' } }),
@@ -860,7 +890,7 @@ describe('Integração: GET /api/user/:id', () => {
     });
 
     afterAll(async () => {
-        await prisma.user.deleteMany();
+        await resetDatabase();
         await desconectarBancoDeDados();
     });
 

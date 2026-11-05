@@ -1,5 +1,4 @@
 import request from "supertest";
-import { execSync } from "child_process";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -9,10 +8,21 @@ import { AuthService } from "../../../src/modules/auth/auth.service";
 import { AuditService } from "../../../src/shared/audit";
 import { desconectarBancoDeDados, prisma } from "../../../src/config/db";
 import { hashCpf } from "../../../src/shared/crypto";
+import { createTestUser, resetDatabase } from "../../helpers/factory";
 
 describe("Teste de integração: /api/auth/login", () => {
-    beforeAll(() => {
-        execSync("npx tsx prisma/seed.ts");
+    // Cada execução começa com o banco de teste vazio e cria o admin usado pelos testes de login
+    beforeAll(async () => {
+        await resetDatabase();
+        await createTestUser({
+            name: "Administrador Igarapés",
+            email: "admin@igarape.com.br",
+            phone: "61999999999",
+            cpf: "00000000000",
+            password: "Admin123!",
+            role: "ADMIN",
+            firstAccess: true,
+        });
     });
     afterAll(async () => {
         await desconectarBancoDeDados();
