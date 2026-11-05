@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
 
+import { escapeHtml } from "./escapeHtml.js";
+
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST as string,
     port: Number(process.env.EMAIL_PORT),
@@ -18,11 +20,11 @@ export async function sendTemporaryPasswordEmail(to: string, name: string, tempP
             subject: "Bem-vindo! Seu acesso foi liberado", 
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Olá, ${name}!</h2>
+                    <h2>Olá, ${escapeHtml(name)}!</h2>
                     <p>Sua conta foi criada com sucesso pela nossa equipe.</p>
                     <p>Para o seu primeiro acesso, utilize a senha provisória abaixo:</p>
                     <h3 style="background-color: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">
-                        ${tempPassword}
+                        ${escapeHtml(tempPassword)}
                     </h3>
                     <p><em>Por questões de segurança, recomendamos que você altere esta senha assim que fizer o login.</em></p>
                     <br/>

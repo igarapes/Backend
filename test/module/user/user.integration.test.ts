@@ -24,7 +24,7 @@ jest.mock('../../../src/shared/audit', () => {
     }
 });
 
-describe('Integração: POST /api/user', () => {
+describe('Integração: POST /api/usuarios', () => {
     let adminToken: string;
     let tecnicoToken: string;
     let realAdminId: string;
@@ -101,7 +101,7 @@ describe('Integração: POST /api/user', () => {
 
     it('Deve criar um novo USUARIO, retornar CPF mascarado e disparar o email', async () => {
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({
                 name: "Usuário Teste",
@@ -130,14 +130,28 @@ describe('Integração: POST /api/user', () => {
         expect(usuarioSalvo!.dataConsent).toBe(true);
     });
 
+    it('Deve escapar o nome no HTML do e-mail, impedindo a injeção de links ou tags', async () => {
+        const response = await request(server)
+            .post('/api/usuarios')
+            .set('Cookie', [`token=${adminToken}`])
+            .send({ name: '<a href="https://site-falso.com">Clique</a>', email: "html_test@test.com", phone: "61999999984", cpf: "11144477735", role: "USUARIO", dataConsent: true });
+
+        expect(response.status).toBe(201);
+
+        const transporter = nodemailer.createTransport();
+        const html = (transporter.sendMail as jest.Mock).mock.calls.at(-1)[0].html as string;
+        expect(html).toContain('&lt;a href=&quot;https://site-falso.com&quot;&gt;Clique&lt;/a&gt;');
+        expect(html).not.toContain('<a href="https://site-falso.com">');
+    });
+
     it('Deve bloquear (400) a criação sem o consentimento de dados', async () => {
         const semConsentimento = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({ name: "Sem Consentimento", email: "sem_consentimento_test@test.com", phone: "61999999981", cpf: "45317828791", role: "USUARIO" });
 
         const consentimentoFalso = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({ name: "Sem Consentimento", email: "sem_consentimento_test@test.com", phone: "61999999981", cpf: "45317828791", role: "USUARIO", dataConsent: false });
 
@@ -152,12 +166,12 @@ describe('Integração: POST /api/user', () => {
 
         try {
             const bloqueado = await request(server)
-                .post('/api/user')
+                .post('/api/usuarios')
                 .set('Cookie', [`token=${adminToken}`])
                 .send({ name: "Dominio Bloqueado", email: "dominio_test@gmail.com", phone: "61999999982", cpf: "68356544068", role: "USUARIO", dataConsent: true });
 
             const permitido = await request(server)
-                .post('/api/user')
+                .post('/api/usuarios')
                 .set('Cookie', [`token=${adminToken}`])
                 .send({ name: "Dominio Permitido", email: "dominio_test@IGARAPE.com.br", phone: "61999999983", cpf: "68356544068", role: "USUARIO", dataConsent: true });
 
@@ -172,7 +186,7 @@ describe('Integração: POST /api/user', () => {
 
     it('Deve permitir que um ADMIN crie um usuário com perfil TECNICO', async () => {
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({
                 name: "Técnico Criado Por Admin",
@@ -190,7 +204,7 @@ describe('Integração: POST /api/user', () => {
 
     it('Deve bloquear a criação se o role não existe no schema Zod', async () => {
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({
                 name: "Usuário Role Invalida",
@@ -207,7 +221,7 @@ describe('Integração: POST /api/user', () => {
 
     it('Deve bloquear a criação se o CPF for inválido', async () => {
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({
                 name: "Usuário CPF Invalido",
@@ -233,12 +247,12 @@ describe('Integração: POST /api/user', () => {
         };
 
         await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send(userData);
         
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send(userData);
         
@@ -248,7 +262,7 @@ describe('Integração: POST /api/user', () => {
 
     it('Deve bloquear a criação se um TÉCNICO tentar criar um ADMIN', async () => {
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${tecnicoToken}`])
             .send({
                 name: "Novo Admin Ilegal",
@@ -265,7 +279,7 @@ describe('Integração: POST /api/user', () => {
 
     it('Deve bloquear a criação se um TÉCNICO tentar criar outro TECNICO', async () => {
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${tecnicoToken}`])
             .send({
                 name: "Novo Tecnico Ilegal",
@@ -285,7 +299,7 @@ describe('Integração: POST /api/user', () => {
         (transporter.sendMail as jest.Mock).mockRejectedValueOnce(new Error('SMTP Falhou'));
 
         const response = await request(server)
-            .post('/api/user')
+            .post('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`])
             .send({
                 name: "Usuário Teste Rollback",
@@ -304,7 +318,7 @@ describe('Integração: POST /api/user', () => {
     });
 });
 
-describe('Integração: PUT /api/user/:id', () => {
+describe('Integração: PUT /api/usuarios/:id', () => {
     let adminToken: string;
     let tecnicoToken: string;
     let usuarioToken: string;
@@ -358,7 +372,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve permitir que um USUARIO atualize o próprio perfil', async () => {
         const response = await request(server)
-            .put(`/api/user/${usuarioId}`)
+            .put(`/api/usuarios/${usuarioId}`)
             .set('Cookie', [`token=${usuarioToken}`])
             .send({ name: 'Usuario Edição Atualizado' });
 
@@ -368,7 +382,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve bloquear (403) se um USUARIO tentar atualizar o perfil de outra pessoa', async () => {
         const response = await request(server)
-            .put(`/api/user/${outroUsuarioId}`) 
+            .put(`/api/usuarios/${outroUsuarioId}`) 
             .set('Cookie', [`token=${usuarioToken}`])
             .send({ name: 'Hacker Name' });
 
@@ -378,7 +392,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve permitir que um TECNICO atualize um USUARIO comum', async () => {
         const response = await request(server)
-            .put(`/api/user/${outroUsuarioId}`)
+            .put(`/api/usuarios/${outroUsuarioId}`)
             .set('Cookie', [`token=${tecnicoToken}`])
             .send({ name: 'Nome Editado Pelo Tecnico' });
 
@@ -388,7 +402,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve bloquear (403) se um TECNICO tentar atualizar um ADMIN', async () => {
         const response = await request(server)
-            .put(`/api/user/${adminId}`)
+            .put(`/api/usuarios/${adminId}`)
             .set('Cookie', [`token=${tecnicoToken}`])
             .send({ name: 'Admin Hackeado' });
 
@@ -398,7 +412,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve bloquear (403) se um TECNICO tentar atualizar outro TECNICO, sem alterar nada no banco', async () => {
         const response = await request(server)
-            .put(`/api/user/${outroTecnicoId}`)
+            .put(`/api/usuarios/${outroTecnicoId}`)
             .set('Cookie', [`token=${tecnicoToken}`])
             .send({ name: 'Tecnico Hackeado' });
 
@@ -411,7 +425,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve bloquear (403) se um TECNICO tentar promover alguém a ADMIN', async () => {
         const response = await request(server)
-            .put(`/api/user/${outroUsuarioId}`)
+            .put(`/api/usuarios/${outroUsuarioId}`)
             .set('Cookie', [`token=${tecnicoToken}`])
             .send({ role: 'ADMIN' });
 
@@ -421,7 +435,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve bloquear (403) se um USUARIO tentar se promover a ADMIN', async () => {
         const response = await request(server)
-            .put(`/api/user/${usuarioId}`)
+            .put(`/api/usuarios/${usuarioId}`)
             .set('Cookie', [`token=${usuarioToken}`])
             .send({ role: 'ADMIN' });
 
@@ -432,7 +446,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve permitir que o USUARIO envie a própria role sem alterá-la (o formulário sempre envia o campo)', async () => {
         const response = await request(server)
-            .put(`/api/user/${usuarioId}`)
+            .put(`/api/usuarios/${usuarioId}`)
             .set('Cookie', [`token=${usuarioToken}`])
             .send({ name: 'Usuario Edição', role: 'USUARIO' });
 
@@ -441,7 +455,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve bloquear (403) que o ADMIN altere o próprio perfil de acesso', async () => {
         const response = await request(server)
-            .put(`/api/user/${adminId}`)
+            .put(`/api/usuarios/${adminId}`)
             .set('Cookie', [`token=${adminToken}`])
             .send({ role: 'USUARIO' });
 
@@ -451,7 +465,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve permitir que um ADMIN atualize qualquer usuário', async () => {
         const response = await request(server)
-            .put(`/api/user/${tecnicoId}`)
+            .put(`/api/usuarios/${tecnicoId}`)
             .set('Cookie', [`token=${adminToken}`])
             .send({ name: 'Tecnico Atualizado Pelo Admin' });
 
@@ -461,7 +475,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve permitir que um ADMIN altere o perfil de acesso de outro usuário', async () => {
         const response = await request(server)
-            .put(`/api/user/${outroUsuarioId}`)
+            .put(`/api/usuarios/${outroUsuarioId}`)
             .set('Cookie', [`token=${adminToken}`])
             .send({ role: 'TECNICO' });
 
@@ -473,7 +487,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve retornar erro se o ID do alvo não for um UUID válido (Zod param)', async () => {
         const response = await request(server)
-            .put(`/api/user/123-id-invalido`)
+            .put(`/api/usuarios/123-id-invalido`)
             .set('Cookie', [`token=${adminToken}`])
             .send({ name: 'Teste UUID' });
 
@@ -483,7 +497,7 @@ describe('Integração: PUT /api/user/:id', () => {
     it('Deve retornar erro se o usuário alvo não for encontrado no banco', async () => {
         const fakeUuid = '123e4567-e89b-12d3-a456-426614174000'; 
         const response = await request(server)
-            .put(`/api/user/${fakeUuid}`)
+            .put(`/api/usuarios/${fakeUuid}`)
             .set('Cookie', [`token=${adminToken}`])
             .send({ name: 'Fantasma' });
 
@@ -493,7 +507,7 @@ describe('Integração: PUT /api/user/:id', () => {
 
     it('Deve retornar erro se tentar atualizar para um email já existente (Erro P2002 Prisma)', async () => {
         const response = await request(server)
-            .put(`/api/user/${usuarioId}`)
+            .put(`/api/usuarios/${usuarioId}`)
             .set('Cookie', [`token=${usuarioToken}`])
             .send({ email: 'admin_put@igarape.com.br' }); 
 
@@ -502,7 +516,7 @@ describe('Integração: PUT /api/user/:id', () => {
     });
 });
 
-describe('Integração: PATCH /api/user/:id/inactivate', () => {
+describe('Integração: PATCH /api/usuarios/:id/inativar', () => {
     let adminToken: string;
     let tecnicoToken: string;
     let usuarioToken: string;
@@ -561,7 +575,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve permitir que um ADMIN inative um USUARIO comum', async () => {
         const response = await request(server)
-            .patch(`/api/user/${usuario2Id}/inactivate`)
+            .patch(`/api/usuarios/${usuario2Id}/inativar`)
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(200);
@@ -578,7 +592,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve permitir que um ADMIN inative um TECNICO', async () => {
         const response = await request(server)
-            .patch(`/api/user/${tecnico2Id}/inactivate`)
+            .patch(`/api/usuarios/${tecnico2Id}/inativar`)
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(200);
@@ -587,7 +601,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve permitir que um TECNICO inative um USUARIO comum', async () => {
         const response = await request(server)
-            .patch(`/api/user/${usuario1Id}/inactivate`)
+            .patch(`/api/usuarios/${usuario1Id}/inativar`)
             .set('Cookie', [`token=${tecnicoToken}`]);
 
         expect(response.status).toBe(200);
@@ -596,7 +610,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve bloquear (403) se um TECNICO tentar inativar um ADMIN', async () => {
         const response = await request(server)
-            .patch(`/api/user/${adminId}/inactivate`)
+            .patch(`/api/usuarios/${adminId}/inativar`)
             .set('Cookie', [`token=${tecnicoToken}`]);
 
         expect(response.status).toBe(403);
@@ -605,7 +619,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve bloquear (403) se um TECNICO tentar inativar outro TECNICO', async () => {
         const response = await request(server)
-            .patch(`/api/user/${tecnico2Id}/inactivate`)
+            .patch(`/api/usuarios/${tecnico2Id}/inativar`)
             .set('Cookie', [`token=${tecnicoToken}`]);
 
         expect(response.status).toBe(403);
@@ -614,7 +628,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve bloquear (403) a tentativa de autossabotagem (inativar a própria conta)', async () => {
         const response = await request(server)
-            .patch(`/api/user/${adminId}/inactivate`)
+            .patch(`/api/usuarios/${adminId}/inativar`)
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(403);
@@ -623,7 +637,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve bloquear (403) se um USUARIO tentar acessar a rota de inativação', async () => {
         const response = await request(server)
-            .patch(`/api/user/${usuario2Id}/inactivate`)
+            .patch(`/api/usuarios/${usuario2Id}/inativar`)
             .set('Cookie', [`token=${usuarioToken}`]);
 
         expect(response.status).toBe(403); 
@@ -631,7 +645,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
 
     it('Deve retornar erro (400) se o ID do alvo não for um UUID válido (Zod)', async () => {
         const response = await request(server)
-            .patch(`/api/user/id-falso-invalido/inactivate`)
+            .patch(`/api/usuarios/id-falso-invalido/inativar`)
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(400);
@@ -640,7 +654,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
     it('Deve retornar erro se o usuário alvo não existir no banco', async () => {
         const fakeUuid = '999e4567-e89b-12d3-a456-426614174000';
         const response = await request(server)
-            .patch(`/api/user/${fakeUuid}/inactivate`)
+            .patch(`/api/usuarios/${fakeUuid}/inativar`)
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(404);
@@ -648,7 +662,7 @@ describe('Integração: PATCH /api/user/:id/inactivate', () => {
     });
 });
 
-describe('Integração: DELETE /api/user/:id', () => {
+describe('Integração: DELETE /api/usuarios/:id', () => {
     let adminToken: string;
     let usuario1Token: string;
     let usuario2Token: string;
@@ -689,7 +703,7 @@ describe('Integração: DELETE /api/user/:id', () => {
 
     it('Deve bloquear (403) a tentativa de excluir a conta de outra pessoa', async () => {
         const response = await request(server)
-            .delete(`/api/user/${usuario2Id}`)
+            .delete(`/api/usuarios/${usuario2Id}`)
             .set('Cookie', [`token=${usuario1Token}`]);
 
         expect(response.status).toBe(403);
@@ -698,7 +712,7 @@ describe('Integração: DELETE /api/user/:id', () => {
 
     it('Deve bloquear (403) a tentativa do ADMIN de excluir a própria conta', async () => {
         const response = await request(server)
-            .delete(`/api/user/${adminId}`)
+            .delete(`/api/usuarios/${adminId}`)
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(403); 
@@ -707,7 +721,7 @@ describe('Integração: DELETE /api/user/:id', () => {
 
     it('Deve retornar erro (400) se o ID do alvo não for um UUID válido (Zod)', async () => {
         const response = await request(server)
-            .delete(`/api/user/id-invalido-zod`)
+            .delete(`/api/usuarios/id-invalido-zod`)
             .set('Cookie', [`token=${usuario1Token}`]);
 
         expect(response.status).toBe(400);
@@ -719,7 +733,7 @@ describe('Integração: DELETE /api/user/:id', () => {
         const fakeToken = jwt.sign({ id: fakeUuid, role: 'USUARIO' }, process.env.AUTH_TOKEN as string, { expiresIn: '1h' });
 
         const response = await request(server)
-            .delete(`/api/user/${fakeUuid}`)
+            .delete(`/api/usuarios/${fakeUuid}`)
             .set('Cookie', [`token=${fakeToken}`]);
 
         expect(response.status).toBe(401);
@@ -728,7 +742,7 @@ describe('Integração: DELETE /api/user/:id', () => {
 
     it('Deve permitir (200) que um USUARIO exclua (anonimize) a própria conta', async () => {
         const response = await request(server)
-            .delete(`/api/user/${usuario1Id}`)
+            .delete(`/api/usuarios/${usuario1Id}`)
             .set('Cookie', [`token=${usuario1Token}`]);
 
         expect(response.status).toBe(200);
@@ -743,7 +757,7 @@ describe('Integração: DELETE /api/user/:id', () => {
     });
 });
 
-describe('Integração: GET /api/user', () => {
+describe('Integração: GET /api/usuarios', () => {
     let adminToken: string;
     let tecnicoToken: string;
     let usuarioToken: string;
@@ -786,7 +800,7 @@ describe('Integração: GET /api/user', () => {
 
     it('Deve permitir que o ADMIN liste todos os usuários cadastrados no banco', async () => {
         const response = await request(server)
-            .get('/api/user')
+            .get('/api/usuarios')
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(response.status).toBe(200);
@@ -800,13 +814,13 @@ describe('Integração: GET /api/user', () => {
 
     it('Deve paginar a listagem sem repetir usuários entre as páginas', async () => {
         const pagina1 = await request(server)
-            .get('/api/user?page=1&limit=2')
+            .get('/api/usuarios?page=1&limit=2')
             .set('Cookie', [`token=${adminToken}`]);
         const pagina2 = await request(server)
-            .get('/api/user?page=2&limit=2')
+            .get('/api/usuarios?page=2&limit=2')
             .set('Cookie', [`token=${adminToken}`]);
         const pagina3 = await request(server)
-            .get('/api/user?page=3&limit=2')
+            .get('/api/usuarios?page=3&limit=2')
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(pagina1.status).toBe(200);
@@ -821,13 +835,13 @@ describe('Integração: GET /api/user', () => {
 
     it('Deve retornar 400 para parâmetros de paginação inválidos', async () => {
         const limiteAlto = await request(server)
-            .get('/api/user?limit=500')
+            .get('/api/usuarios?limit=500')
             .set('Cookie', [`token=${adminToken}`]);
         const paginaZero = await request(server)
-            .get('/api/user?page=0')
+            .get('/api/usuarios?page=0')
             .set('Cookie', [`token=${adminToken}`]);
         const naoNumero = await request(server)
-            .get('/api/user?page=abc')
+            .get('/api/usuarios?page=abc')
             .set('Cookie', [`token=${adminToken}`]);
 
         expect(limiteAlto.status).toBe(400);
@@ -837,7 +851,7 @@ describe('Integração: GET /api/user', () => {
 
     it('Deve restringir a listagem do TECNICO apenas a perfis do tipo USUARIO (Menor Privilégio)', async () => {
         const response = await request(server)
-            .get('/api/user')
+            .get('/api/usuarios')
             .set('Cookie', [`token=${tecnicoToken}`]);
 
         expect(response.status).toBe(200);
@@ -853,13 +867,13 @@ describe('Integração: GET /api/user', () => {
 
     it('Deve bloquear (403) a tentativa de um USUARIO comum acessar a listagem', async () => {
         const response = await request(server)
-            .get('/api/user')
+            .get('/api/usuarios')
             .set('Cookie', [`token=${usuarioToken}`]);
 
         expect(response.status).toBe(403);
     });
 });
-describe('Integração: GET /api/user/:id', () => {
+describe('Integração: GET /api/usuarios/:id', () => {
     const ids: Record<string, string> = {};
     const tokens: Record<string, string> = {};
 
@@ -896,7 +910,7 @@ describe('Integração: GET /api/user/:id', () => {
 
     async function buscar(quem: string, alvo: string) {
         return request(server)
-            .get(`/api/user/${alvo}`)
+            .get(`/api/usuarios/${alvo}`)
             .set('Cookie', [`token=${tokens[quem]}`]);
     }
 

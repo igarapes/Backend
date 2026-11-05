@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { passwordValidation } from "../../shared/passwordShema.js";
+import { passwordValidation } from "../../shared/passwordSchema.js";
 
 export const schemaLogin = z.object({
     identifier: z

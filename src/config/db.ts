@@ -16,10 +16,6 @@ if (process.env.NODE_ENV !== "production") {
 
 export const prisma = prismaClient;
 
-export async function conectarBancoDeDados() {
-  await prisma.$connect();
-}
-
 export async function desconectarBancoDeDados() {
   await prisma.$disconnect();
 }

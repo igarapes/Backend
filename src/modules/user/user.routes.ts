@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { UserController } from "./user.controller.js";
-import { validateData } from "../../shared/middleware/validadeData.js";
+import { validateData } from "../../shared/middleware/validateData.js";
 import { authenticated } from "../../shared/middleware/authenticated.js";
 import { checkRole } from "../../shared/middleware/checkRole.js";
 import { schemaCreate, schemaIdParam, schemaListQuery, schemaUpdate } from "./user.schema.js";
@@ -12,7 +12,7 @@ const userController = new UserController();
 
 /**
  * @swagger
- * /user:
+ * /usuarios:
  *   post:
  *     summary: Cria um novo usuário na plataforma
  *     description: Rota protegida. O criador deve estar logado (Token via HttpOnly Cookie) e possuir perfil de ADMIN ou TECNICO. Técnicos só podem criar usuários comuns. A senha é gerada e enviada automaticamente por email.
@@ -77,7 +77,7 @@ userRoutes.post(
 
 /**
  * @swagger
- * /user/{id}:
+ * /usuarios/{id}:
  *   put:
  *     summary: Atualiza os dados de um usuário existente
  *     description: Rota protegida. O solicitante deve estar logado (Token via HttpOnly Cookie). Técnicos só podem editar a si mesmos e a Usuários comuns. Administradores podem editar qualquer um. Todos os campos no body são opcionais (envie apenas o que deseja alterar).
@@ -135,7 +135,7 @@ userRoutes.put(
 
 /**
  * @swagger
- * /user/{id}/inactivate:
+ * /usuarios/{id}/inativar:
  *   patch:
  *     summary: Inativa um usuário do sistema (Soft Delete)
  *     description: Rota estritamente administrativa. Altera o status do usuário para inativo, bloqueando acessos futuros sem apagar o histórico de auditoria. Técnicos só podem inativar Usuários comuns. Administradores podem inativar Técnicos e Usuários.
@@ -161,7 +161,7 @@ userRoutes.put(
  *         description: Usuário alvo não encontrado no banco de dados.
  */
 userRoutes.patch( 
-    "/:id/inactivate", 
+    "/:id/inativar", 
     authenticated,
     requirePasswordChanged,
     checkRole(["ADMIN", "TECNICO"]), 
@@ -171,7 +171,7 @@ userRoutes.patch(
 
 /**
  * @swagger
- * /user/{id}:
+ * /usuarios/{id}:
  *   delete:
  *     summary: Exclui (anonimiza) a conta do próprio usuário
  *     description: Rota para que o usuário exerça seu direito de exclusão (LGPD). Os dados pessoais são anonimizados para preservar a integridade do banco de dados e os logs de auditoria. Apenas o dono da conta pode excluí-la. Administradores não podem excluir suas próprias contas.
@@ -204,7 +204,7 @@ userRoutes.delete(
 
 /**
  * @swagger
- * /user:
+ * /usuarios:
  *   get:
  *     summary: Lista os usuários cadastrados no sistema
  *     description: Retorna uma lista de usuários preservando a privacidade (senhas omitidas e CPFs mascarados). O retorno é filtrado pelo Princípio do Menor Privilégio - Administradores podem visualizar todos os usuários do sistema; Técnicos podem visualizar apenas perfis do tipo "USUARIO". Perfis comuns ("USUARIO") não têm acesso a esta rota.
@@ -267,7 +267,7 @@ userRoutes.get(
 
 /**
  * @swagger
- * /user/{id}:
+ * /usuarios/{id}:
  *   get:
  *     summary: Busca os dados de um usuário
  *     description: Rota protegida. Usada pela tela de edição. Usuários só veem o próprio perfil; Técnicos veem o próprio perfil e Usuários comuns; Administradores veem todos. A senha nunca é retornada e o CPF vem mascarado.

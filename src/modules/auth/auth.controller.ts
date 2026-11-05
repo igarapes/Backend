@@ -23,7 +23,7 @@ export class AuthController{
             try {
                 await auditService.register( "LOGIN_ATTEMPT", "SUCCESS", identifierForAudit(identifier), undefined, req.ip);
             } catch (auditError) {
-                console.error("Error ao regostrar auditoria de login:", auditError);
+                console.error("Erro ao registrar auditoria de login:", auditError);
             }
             res.cookie("token", token, { ...cookieOptions, maxAge: 24 * 60 * 60 * 1000 });
             res.status(200).json({ message: "Login realizado com sucesso", user });
@@ -45,7 +45,7 @@ export class AuthController{
         return res.status(200).json(user);
     }
 
-    async logout(req: Request, res: Response){
+    logout(req: Request, res: Response){
         res.clearCookie("token", cookieOptions);
         return res.status(200).json({ message: "Logout realizado com sucesso" });
     }

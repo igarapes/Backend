@@ -172,7 +172,7 @@ describe("Teste de integração: /api/auth/login", () => {
     });
 });
 
-describe("Teste de integração: /api/auth/updatePassword", () => {
+describe("Teste de integração: /api/auth/atualizarSenha", () => {
 
     let adminOriginalPassword: string;
     let adminOriginalFirstAccess: boolean;
@@ -221,7 +221,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     it("Deve realizar atualização de senha com sucesso", async () => {
         const cookies = await realizarLogin();
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -246,7 +246,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const senhaLonga = "Aa1@" + "a".repeat(80);
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: senhaLonga,
@@ -260,7 +260,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
     it("Deve returnar erro 400, quando a senha não tem o tamanho ideal", async () => {
         const cookies = await realizarLogin()
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "Nov123!",
@@ -278,7 +278,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const cookies = await realizarLogin();
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenha123",
@@ -296,7 +296,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const cookies = await realizarLogin();
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenha!!!",
@@ -314,7 +314,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const cookies = await realizarLogin();
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NOVASENHA!!!",
@@ -332,7 +332,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const cookies = await realizarLogin();
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "novasenha!!!",
@@ -348,7 +348,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
 
     it("Deve exigir token válido para atualizar a senha", async () => {
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .send({
                 newPassword: "Admin123!",
                 confirmPassword: "Admin123!"
@@ -359,7 +359,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
 
     it("Deve retornar 401 quando o token for inválido", async () => {
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", "token=token-invalido")
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -387,7 +387,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         );
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", `token=${expiredToken}`)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -402,7 +402,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const cookies = await realizarLogin();
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -420,7 +420,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const tokenSemId = jwt.sign({ role: "admin" }, secret!);
         
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", `token=${tokenSemId}`)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -437,7 +437,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const spy = jest.spyOn(AuthService.prototype, 'updatePassword').mockRejectedValueOnce(new Error("Erro simulado ao atualizar"));
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -457,7 +457,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const spy = jest.spyOn(AuthService.prototype, 'updatePassword').mockRejectedValueOnce({ falha: "desconhecida" });
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -476,7 +476,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         const auditSpy = jest.spyOn(AuditService.prototype, 'register').mockRejectedValueOnce(new Error("Auditoria offline"));
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({
                 newPassword: "NovaSenhaSegura@2!",
@@ -497,7 +497,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
             .mockImplementationOnce(async () => new Response(`0000000000000000000000000000000000A:0\r\n${sha1.slice(5)}:42`));
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({ newPassword: senhaVazada, confirmPassword: senhaVazada });
 
@@ -512,7 +512,7 @@ describe("Teste de integração: /api/auth/updatePassword", () => {
         jest.spyOn(globalThis, "fetch").mockImplementationOnce(async () => { throw new Error("API fora do ar"); });
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({ newPassword: "NovaSenhaSegura@2!", confirmPassword: "NovaSenhaSegura@2!" });
 
@@ -617,7 +617,7 @@ describe("Teste de integração: login por CPF e bloqueio de usuários inativos"
         await prisma.user.update({ where: { email: emails[2] }, data: { isActivate: false } });
 
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({ newPassword: "NovaSenhaSegura@2!", confirmPassword: "NovaSenhaSegura@2!" });
 
@@ -654,7 +654,7 @@ describe("Teste de integração: troca de senha obrigatória no primeiro acesso"
 
     it("Deve bloquear (403) as rotas de usuário enquanto a senha provisória não for trocada", async () => {
         const response = await request(server)
-            .get("/api/user")
+            .get("/api/usuarios")
             .set("Cookie", cookies);
 
         expect(response.status).toBe(403);
@@ -663,7 +663,7 @@ describe("Teste de integração: troca de senha obrigatória no primeiro acesso"
 
     it("Deve permitir a troca de senha durante o primeiro acesso", async () => {
         const response = await request(server)
-            .patch("/api/auth/updatePassword")
+            .post("/api/auth/atualizarSenha")
             .set("Cookie", cookies)
             .send({ newPassword: "NovaSenhaSegura@2!", confirmPassword: "NovaSenhaSegura@2!" });
 
@@ -672,7 +672,7 @@ describe("Teste de integração: troca de senha obrigatória no primeiro acesso"
 
     it("Deve liberar as rotas com o mesmo cookie depois da troca de senha", async () => {
         const response = await request(server)
-            .get("/api/user")
+            .get("/api/usuarios")
             .set("Cookie", cookies);
 
         expect(response.status).toBe(200);

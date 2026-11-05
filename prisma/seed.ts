@@ -123,9 +123,9 @@ async function main() {
   console.log("- 5 Usuários");
   
   console.log("\n🔑 Credenciais de Teste (Senha Padrão para todos: Admin123!):");
-  console.log(`- Admin:   ${adminUser.email}`);
-  console.log(`- Técnico: tecnico1@igarape.com.br`);
-  console.log(`- Usuário: usuario1@igarape.com.br`);
+  console.log(`- Admin:   ${adminUser.email} ou CPF 726.325.320-86`);
+  console.log(`- Técnico: tecnico1@igarape.com.br ou CPF 005.831.700-72`);
+  console.log(`- Usuário: usuario1@igarape.com.br ou CPF 685.439.970-03`);
 }
 
 main()

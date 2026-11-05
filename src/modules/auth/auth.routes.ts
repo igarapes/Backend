@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { AuthController } from "./auth.controller.js";
-import { validateData } from "../../shared/middleware/validadeData.js";
+import { validateData } from "../../shared/middleware/validateData.js";
 import { authenticated } from "../../shared/middleware/authenticated.js";
 import { loginRateLimit } from "../../shared/middleware/loginRateLimit.js";
 import { schemaChangePassword, schemaLogin } from "./auth.schema.js";
@@ -56,8 +56,8 @@ authRoutes.post(
 
 /**
  * @swagger
- * /auth/updatePassword:
- *   patch:
+ * /auth/atualizarSenha:
+ *   post:
  *     summary: Atualiza a senha do usuário
  *     description: Rota protegida. O usuário já deve estar logado (Token injetado via HttpOnly Cookie).
  *     tags: [Autenticação]
@@ -78,8 +78,8 @@ authRoutes.post(
  *       200:
  *         description: Senha atualizada com sucesso.
  */
-authRoutes.patch(
-    "/updatePassword",
+authRoutes.post(
+    "/atualizarSenha",
     authenticated,
     validateData(schemaChangePassword, "body"),
     authController.updatePassword.bind(authController)

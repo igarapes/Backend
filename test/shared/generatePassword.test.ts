@@ -1,5 +1,5 @@
 import { generateCompliantPassword } from "../../src/shared/generatePassword";
-import { passwordValidation } from "../../src/shared/passwordShema";
+import { passwordValidation } from "../../src/shared/passwordSchema";
 
 describe("Unitário: geração da senha provisória", () => {
     const senhas = Array.from({ length: 200 }, () => generateCompliantPassword());

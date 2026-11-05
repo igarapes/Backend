@@ -1,0 +1,17 @@
+{
+  // Só para o editor e para checagem de tipos dos testes (o Jest roda com SWC e não usa este arquivo).
+  // Os testes importam sem a extensão .js, por isso a resolução "bundler" em vez de "nodenext".
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["node", "jest"],
+    // Regras extra-rígidas desligadas só nos testes: se um valor acessado não existir, o próprio teste já falha
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["**/*.ts", "../src/**/*.ts"],
+  "exclude": []
+}

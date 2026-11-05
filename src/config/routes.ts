@@ -6,6 +6,6 @@ import { userRoutes } from "../modules/user/user.routes.js";
 const routes = Router();
 
 routes.use("/auth", authRoutes);
-routes.use("/user", userRoutes);
+routes.use("/usuarios", userRoutes);
 
 export {routes};
